@@ -76,16 +76,22 @@ def _print_summary(report: harness.BaselineReport) -> None:
         )
 
 
-def record(dry_run: bool, representation: str) -> None:
+def record(dry_run: bool, representation: str, model_key: str) -> None:
     # litellm happens to load .env on import, so OLLAMA_API_BASE resolves even
     # without this call. Do not rely on that side effect.
     load_dotenv()
 
+    profile = harness.resolve_model(model_key)
+    print(f"model: {model_key} ({profile.model})")
+    print(f"dimensions: {profile.dimensions}")
+    print(f"input prefix: {'yes' if profile.input_prefix else 'no'}")
     print(f"representation: {representation}")
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         db_file = Path(tmp_dir) / "record.db"
-        conn = harness.index_corpus(db_file, representation=representation)
+        conn = harness.index_corpus(
+            db_file, representation=representation, model_key=model_key
+        )
         try:
             counts = _corpus_counts(conn)
             if dry_run:
@@ -94,18 +100,26 @@ def record(dry_run: bool, representation: str) -> None:
                 print(f"distinct bodies to embed: {counts['distinct_bodies']}")
                 return
 
-            cfg = harness.build_config(db_file, representation=representation)
+            cfg = harness.build_config(
+                db_file, representation=representation, model_key=model_key
+            )
             run_embed(conn, cfg, lambda message: print(message))
 
             vectors = _export_vectors(conn)
             harness.save_cassette(
-                harness.cassette_path(representation=representation), vectors
+                harness.cassette_path(
+                    model_key=model_key, representation=representation
+                ),
+                vectors,
+                model_key=model_key,
             )
         finally:
             conn.close()
 
-    report = harness.run_baseline(representation=representation)
-    snapshot_file = harness.snapshot_path(representation)
+    report = harness.run_baseline(representation=representation, model_key=model_key)
+    snapshot_file = harness.snapshot_path(
+        representation=representation, model_key=model_key
+    )
     snapshot_file.write_text(
         json.dumps(report.to_dict(), indent=2) + "\n", encoding="utf-8"
     )
@@ -128,8 +142,16 @@ def main() -> None:
         choices=LEVELS,
         help="AST normalization level to embed and record (default: %(default)s)",
     )
+    parser.add_argument(
+        "--model",
+        default=harness.DEFAULT_MODEL,
+        choices=sorted(harness.MODELS),
+        help="model profile to embed and record (default: %(default)s)",
+    )
     args = parser.parse_args()
-    record(dry_run=args.dry_run, representation=args.representation)
+    record(
+        dry_run=args.dry_run, representation=args.representation, model_key=args.model
+    )
 
 
 if __name__ == "__main__":

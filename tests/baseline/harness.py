@@ -38,8 +38,38 @@ SNAPSHOT_FILE = BASELINE_DIR / "snapshot.json"
 # change to a default must produce a visible baseline update, not silent drift.
 # REPRESENTATION is likewise pinned: the committed snapshot must describe one
 # known configuration.
-MODEL = "ollama/unclemusclez/jina-embeddings-v2-base-code"
-DIMENSIONS = 768
+
+
+@dataclass(frozen=True)
+class ModelProfile:
+    model: str
+    dimensions: int
+    input_prefix: str | None = None
+
+
+# Dimensions and prefix are measured, not guessed: the 1.5b model is a
+# Matryoshka model truncated to 256 dims because that improves separation on
+# this corpus (upstream's README recommends the same width for Jina code
+# models), and the prefix is the code2code query instruction from its model
+# card.
+MODELS: dict[str, ModelProfile] = {
+    "jina-v2-base-code": ModelProfile(
+        model="ollama/unclemusclez/jina-embeddings-v2-base-code",
+        dimensions=768,
+    ),
+    "jina-code-1.5b": ModelProfile(
+        model="ollama/hf.co/herMaster/jina-code-embeddings-1.5b-GGUF",
+        dimensions=256,
+        input_prefix=(
+            "Find an equivalent code snippet given the following code snippet:\n"
+        ),
+    ),
+}
+
+DEFAULT_MODEL = "jina-v2-base-code"
+
+MODEL = MODELS[DEFAULT_MODEL].model
+DIMENSIONS = MODELS[DEFAULT_MODEL].dimensions
 SIMILARITY_THRESHOLD = 0.92
 RERANK_THRESHOLD = 0.94
 BODY_NODE_COUNT_THRESHOLD = 10
@@ -119,7 +149,19 @@ class BaselineReport:
         }
 
 
-def build_config(db_file: Path, representation: str = REPRESENTATION) -> Config:
+def resolve_model(model_key: str) -> ModelProfile:
+    if model_key not in MODELS:
+        valid = ", ".join(sorted(MODELS))
+        raise ValueError(f"invalid model {model_key!r}; must be one of {valid}")
+    return MODELS[model_key]
+
+
+def build_config(
+    db_file: Path,
+    representation: str = REPRESENTATION,
+    model_key: str = DEFAULT_MODEL,
+) -> Config:
+    profile = resolve_model(model_key)
     parent = db_file.parent
     return Config(
         source_dir=CORPUS_DIR,
@@ -127,8 +169,8 @@ def build_config(db_file: Path, representation: str = REPRESENTATION) -> Config:
         db_file=db_file,
         report_dir=parent / "report",
         ignore_file=parent / "slopo.ignore.txt",
-        embedding_model=MODEL,
-        embedding_dimensions=DIMENSIONS,
+        embedding_model=profile.model,
+        embedding_dimensions=profile.dimensions,
         embedding_api_key=None,
         embedding_params={},
         # Ollama opens one connection per embedded input and disables keep-alive, so a
@@ -140,13 +182,16 @@ def build_config(db_file: Path, representation: str = REPRESENTATION) -> Config:
         rerank_threshold=RERANK_THRESHOLD,
         body_node_count_threshold=BODY_NODE_COUNT_THRESHOLD,
         representation=representation,
+        embedding_input_prefix=profile.input_prefix,
     )
 
 
 def index_corpus(
-    db_file: Path, representation: str = REPRESENTATION
+    db_file: Path,
+    representation: str = REPRESENTATION,
+    model_key: str = DEFAULT_MODEL,
 ) -> sqlite3.Connection:
-    cfg = build_config(db_file, representation=representation)
+    cfg = build_config(db_file, representation=representation, model_key=model_key)
     conn = create_db(cfg)
     run_index(conn, cfg, lambda _message: None)
     return conn
@@ -160,20 +205,32 @@ def _representation_suffix(representation: str) -> str:
     return "" if representation == "raw" else f"-{representation}"
 
 
-def cassette_path(model: str = MODEL, representation: str = "raw") -> Path:
+def cassette_path(model_key: str = DEFAULT_MODEL, representation: str = "raw") -> Path:
+    profile = resolve_model(model_key)
     return (
-        EMBEDDINGS_DIR / f"{_slug(model)}{_representation_suffix(representation)}.json"
+        EMBEDDINGS_DIR
+        / f"{_slug(profile.model)}{_representation_suffix(representation)}.json"
     )
 
 
-def snapshot_path(representation: str = REPRESENTATION) -> Path:
-    suffix = _representation_suffix(representation)
+def _model_suffix(model_key: str) -> str:
+    resolve_model(model_key)  # validates, error naming known keys
+    return "" if model_key == DEFAULT_MODEL else f"-{model_key}"
+
+
+def snapshot_path(
+    representation: str = REPRESENTATION, model_key: str = DEFAULT_MODEL
+) -> Path:
+    suffix = _model_suffix(model_key) + _representation_suffix(representation)
     if not suffix:
         return SNAPSHOT_FILE
     return BASELINE_DIR / f"snapshot{suffix}.json"
 
 
-def save_cassette(path: Path, vectors: dict[str, list[float]]) -> None:
+def save_cassette(
+    path: Path, vectors: dict[str, list[float]], model_key: str = DEFAULT_MODEL
+) -> None:
+    profile = resolve_model(model_key)
     encoded_vectors = {
         body_hash: base64.b64encode(
             np.asarray(vector, dtype=np.float32).tobytes()
@@ -181,8 +238,8 @@ def save_cassette(path: Path, vectors: dict[str, list[float]]) -> None:
         for body_hash, vector in vectors.items()
     }
     payload = {
-        "model": MODEL,
-        "dimensions": DIMENSIONS,
+        "model": profile.model,
+        "dimensions": profile.dimensions,
         "thresholds": {
             "similarity_threshold": SIMILARITY_THRESHOLD,
             "rerank_threshold": RERANK_THRESHOLD,
@@ -194,19 +251,21 @@ def save_cassette(path: Path, vectors: dict[str, list[float]]) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def load_cassette(path: Path) -> Cassette:
+def load_cassette(path: Path, model_key: str = DEFAULT_MODEL) -> Cassette:
+    profile = resolve_model(model_key)
     if not path.is_file():
         raise CassetteError(f"no cassette at {path}; run record.py to generate one")
 
     raw = json.loads(path.read_text(encoding="utf-8"))
 
-    if raw["model"] != MODEL:
+    if raw["model"] != profile.model:
         raise CassetteError(
-            f"cassette model {raw['model']!r} does not match pinned {MODEL!r}"
+            f"cassette model {raw['model']!r} does not match pinned {profile.model!r}"
         )
-    if raw["dimensions"] != DIMENSIONS:
+    if raw["dimensions"] != profile.dimensions:
         raise CassetteError(
-            f"cassette dimensions {raw['dimensions']} do not match pinned {DIMENSIONS}"
+            f"cassette dimensions {raw['dimensions']} do not match pinned"
+            f" {profile.dimensions}"
         )
 
     vectors = {
@@ -368,15 +427,20 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def run_baseline(
-    cassette_file: Path | None = None, representation: str = REPRESENTATION
+    cassette_file: Path | None = None,
+    representation: str = REPRESENTATION,
+    model_key: str = DEFAULT_MODEL,
 ) -> BaselineReport:
     if representation not in LEVELS:
         valid = ", ".join(repr(level) for level in LEVELS)
         raise ValueError(
             f"invalid representation {representation!r}; must be one of {valid}"
         )
+    profile = resolve_model(model_key)
     cassette = load_cassette(
-        cassette_file or cassette_path(representation=representation)
+        cassette_file
+        or cassette_path(model_key=model_key, representation=representation),
+        model_key=model_key,
     )
     expectations = yaml.safe_load(EXPECTATIONS_FILE.read_text(encoding="utf-8"))
     duplicate_entries = expectations.get("duplicates", [])
@@ -384,7 +448,7 @@ def run_baseline(
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         db_file = Path(tmp_dir) / "baseline.db"
-        conn = index_corpus(db_file, representation=representation)
+        conn = index_corpus(db_file, representation=representation, model_key=model_key)
         try:
             seed_embeddings(conn, cassette)
 
@@ -461,8 +525,8 @@ def run_baseline(
             exact_copies = count_exact_copies(conn)
 
             return BaselineReport(
-                model=MODEL,
-                dimensions=DIMENSIONS,
+                model=profile.model,
+                dimensions=profile.dimensions,
                 thresholds={
                     "similarity_threshold": SIMILARITY_THRESHOLD,
                     "rerank_threshold": RERANK_THRESHOLD,
