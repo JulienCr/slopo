@@ -1,0 +1,108 @@
+"""Record real embeddings for the baseline corpus into a versioned cassette,
+then regenerate snapshot.json by replaying it. Run via
+`uv run python -m tests.baseline.record` from the repo root. See
+tests/baseline/harness.py for the replay path this script feeds."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sqlite3
+import tempfile
+from pathlib import Path
+
+import numpy as np
+from dotenv import load_dotenv
+
+from slopo.embedding.command import run_embed
+from tests.baseline import harness
+
+
+def _export_vectors(conn: sqlite3.Connection) -> dict[str, list[float]]:
+    rows = conn.execute("SELECT body_hash, embedding FROM embeddings").fetchall()
+    return {
+        body_hash: np.frombuffer(blob, dtype=np.float32).tolist()
+        for body_hash, blob in rows
+    }
+
+
+def _corpus_counts(conn: sqlite3.Connection) -> dict[str, int]:
+    files = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+    units = conn.execute("SELECT COUNT(*) FROM code_units").fetchone()[0]
+    distinct_bodies = conn.execute(
+        "SELECT COUNT(DISTINCT body_hash) FROM code_units"
+    ).fetchone()[0]
+    return {"files": files, "units": units, "distinct_bodies": distinct_bodies}
+
+
+def _print_summary(report: harness.BaselineReport) -> None:
+    corpus = report.corpus
+    totals = report.totals
+    print()
+    print(
+        f"files: {corpus['files']}  units: {corpus['units']}  "
+        f"distinct_bodies: {corpus['distinct_bodies']}  "
+        f"exact_copies: {corpus['exact_copies']}"
+    )
+    print(
+        f"clusters: {totals['clusters']}  recall: {totals['recall']}  "
+        f"false_positives: {totals['false_positives']}  "
+        f"separation_margin: {totals['separation_margin']}"
+    )
+    print()
+    header = f"{'name':<62} {'kind':<10} {'similarity':>10} {'same_cluster':>13}"
+    print(header)
+    print("-" * len(header))
+    for pair in report.pairs:
+        print(
+            f"{pair.name:<62} {pair.kind:<10} {pair.similarity:>10.4f} "
+            f"{str(pair.same_cluster):>13}"
+        )
+
+
+def record(dry_run: bool) -> None:
+    # litellm happens to load .env on import, so OLLAMA_API_BASE resolves even
+    # without this call. Do not rely on that side effect.
+    load_dotenv()
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        db_file = Path(tmp_dir) / "record.db"
+        conn = harness.index_corpus(db_file)
+        try:
+            counts = _corpus_counts(conn)
+            if dry_run:
+                print(f"files: {counts['files']}")
+                print(f"units: {counts['units']}")
+                print(f"distinct bodies to embed: {counts['distinct_bodies']}")
+                return
+
+            cfg = harness.build_config(db_file)
+            run_embed(conn, cfg, lambda message: print(message))
+
+            vectors = _export_vectors(conn)
+            harness.save_cassette(harness.cassette_path(), vectors)
+        finally:
+            conn.close()
+
+    report = harness.run_baseline()
+    harness.SNAPSHOT_FILE.write_text(
+        json.dumps(report.to_dict(), indent=2) + "\n", encoding="utf-8"
+    )
+    _print_summary(report)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Record the baseline embedding cassette and snapshot."
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="index the corpus and report counts without calling the model",
+    )
+    args = parser.parse_args()
+    record(dry_run=args.dry_run)
+
+
+if __name__ == "__main__":
+    main()

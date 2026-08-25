@@ -1,0 +1,131 @@
+{
+  "model": "ollama/unclemusclez/jina-embeddings-v2-base-code",
+  "dimensions": 768,
+  "thresholds": {
+    "similarity_threshold": 0.92,
+    "rerank_threshold": 0.94,
+    "body_node_count_threshold": 10
+  },
+  "corpus": {
+    "files": 10,
+    "units": 54,
+    "distinct_bodies": 52,
+    "exact_copies": 4
+  },
+  "totals": {
+    "clusters": 3,
+    "recall": 0.5,
+    "false_positives": 0,
+    "separation_margin": -0.0286
+  },
+  "pairs": [
+    {
+      "name": "exact copy of CSV export across distant modules",
+      "kind": "duplicate",
+      "a": "reports/exports.py::export_rows_to_csv",
+      "b": "admin/exports.py::export_rows_to_csv",
+      "similarity": 1.0,
+      "rerank_score": 1.075,
+      "same_cluster": true
+    },
+    {
+      "name": "exact copy of retry-with-backoff helper across distant modules",
+      "kind": "duplicate",
+      "a": "orders/fulfillment.py::retry_with_backoff",
+      "b": "util/retry.py::retry_with_backoff",
+      "similarity": 1.0,
+      "rerank_score": 1.075,
+      "same_cluster": true
+    },
+    {
+      "name": "renamed variant of invoice total calculation",
+      "kind": "duplicate",
+      "a": "billing/invoices.py::calculate_invoice_total",
+      "b": "orders/checkout.py::compute_order_total",
+      "similarity": 0.7583,
+      "rerank_score": 0.8151,
+      "same_cluster": false
+    },
+    {
+      "name": "renamed variant of pagination helper",
+      "kind": "duplicate",
+      "a": "reports/exports.py::paginate_records",
+      "b": "admin/users.py::paginate_results",
+      "similarity": 0.7997,
+      "rerank_score": 0.8597,
+      "same_cluster": false
+    },
+    {
+      "name": "discount helper with an added positive-amount guard",
+      "kind": "duplicate",
+      "a": "billing/pricing.py::apply_discount",
+      "b": "orders/checkout.py::apply_coupon_discount",
+      "similarity": 0.8752,
+      "rerank_score": 0.9408,
+      "same_cluster": false
+    },
+    {
+      "name": "invoice vs receipt numbering, same file, ~250 lines apart",
+      "kind": "duplicate",
+      "a": "billing/invoices.py::format_invoice_number",
+      "b": "billing/invoices.py::format_receipt_number",
+      "similarity": 0.9436,
+      "rerank_score": 0.9734,
+      "same_cluster": true
+    },
+    {
+      "name": "email vs phone validation, same shape, different rules",
+      "kind": "distinct",
+      "a": "util/validation.py::validate_email",
+      "b": "util/validation.py::validate_phone",
+      "similarity": 0.4737,
+      "rerank_score": 0.4737,
+      "same_cluster": false
+    },
+    {
+      "name": "password strength vs username validity, same domain",
+      "kind": "distinct",
+      "a": "admin/users.py::is_password_strong",
+      "b": "util/validation.py::is_username_valid",
+      "similarity": 0.6648,
+      "rerank_score": 0.7146,
+      "same_cluster": false
+    },
+    {
+      "name": "tax amount vs shipping cost, same arithmetic shape",
+      "kind": "distinct",
+      "a": "billing/invoices.py::calculate_tax_amount",
+      "b": "orders/checkout.py::calculate_shipping_cost",
+      "similarity": 0.5028,
+      "rerank_score": 0.5406,
+      "same_cluster": false
+    },
+    {
+      "name": "circle area vs circle circumference, one formula term differs",
+      "kind": "distinct",
+      "a": "geometry/shapes.py::compute_circle_area",
+      "b": "geometry/shapes.py::compute_circle_circumference",
+      "similarity": 0.7869,
+      "rerank_score": 0.7869,
+      "same_cluster": false
+    },
+    {
+      "name": "CSV export vs JSON export, same naming, different logic",
+      "kind": "distinct",
+      "a": "reports/exports.py::export_rows_to_csv",
+      "b": "reports/exports.py::export_rows_to_json",
+      "similarity": 0.6004,
+      "rerank_score": 0.6004,
+      "same_cluster": false
+    },
+    {
+      "name": "point-in-polygon vs point-in-circle containment checks",
+      "kind": "distinct",
+      "a": "geometry/shapes.py::point_in_polygon",
+      "b": "geometry/shapes.py::point_in_circle",
+      "similarity": 0.5897,
+      "rerank_score": 0.5897,
+      "same_cluster": false
+    }
+  ]
+}
