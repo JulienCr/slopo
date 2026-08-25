@@ -1,0 +1,57 @@
+# Pairs that MUST end up in the same cluster.
+duplicates:
+  - name: exact copy of CSV export across distant modules
+    kind: exact
+    a: reports/exports.py::export_rows_to_csv
+    b: admin/exports.py::export_rows_to_csv
+
+  - name: exact copy of retry-with-backoff helper across distant modules
+    kind: exact
+    a: orders/fulfillment.py::retry_with_backoff
+    b: util/retry.py::retry_with_backoff
+
+  - name: renamed variant of invoice total calculation
+    kind: renamed
+    a: billing/invoices.py::calculate_invoice_total
+    b: orders/checkout.py::compute_order_total
+
+  - name: renamed variant of pagination helper
+    kind: renamed
+    a: reports/exports.py::paginate_records
+    b: admin/users.py::paginate_results
+
+  - name: discount helper with an added positive-amount guard
+    kind: near
+    a: billing/pricing.py::apply_discount
+    b: orders/checkout.py::apply_coupon_discount
+
+  - name: invoice vs receipt numbering, same file, ~250 lines apart
+    kind: near
+    a: billing/invoices.py::format_invoice_number
+    b: billing/invoices.py::format_receipt_number
+
+# Pairs that MUST NOT end up in the same cluster.
+distinct:
+  - name: email vs phone validation, same shape, different rules
+    a: util/validation.py::validate_email
+    b: util/validation.py::validate_phone
+
+  - name: password strength vs username validity, same domain
+    a: admin/users.py::is_password_strong
+    b: util/validation.py::is_username_valid
+
+  - name: tax amount vs shipping cost, same arithmetic shape
+    a: billing/invoices.py::calculate_tax_amount
+    b: orders/checkout.py::calculate_shipping_cost
+
+  - name: circle area vs circle circumference, one formula term differs
+    a: geometry/shapes.py::compute_circle_area
+    b: geometry/shapes.py::compute_circle_circumference
+
+  - name: CSV export vs JSON export, same naming, different logic
+    a: reports/exports.py::export_rows_to_csv
+    b: reports/exports.py::export_rows_to_json
+
+  - name: point-in-polygon vs point-in-circle containment checks
+    a: geometry/shapes.py::point_in_polygon
+    b: geometry/shapes.py::point_in_circle
