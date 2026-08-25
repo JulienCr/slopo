@@ -41,6 +41,7 @@ def test_returns_config_with_defaults_when_only_required_fields_present():
     assert cfg.similarity_threshold == 0.92
     assert cfg.rerank_threshold == 0.94
     assert cfg.body_node_count_threshold == 10
+    assert cfg.representation == "raw"
 
 
 def test_overrides_defaults_when_optional_fields_present():
@@ -288,6 +289,34 @@ def test_embedding_params_non_scalar_value_rejected():
             _minimal_raw(embedding_params={"input_type": ["a", "b"]}),
             source="<test>",
         )
+
+
+# --- representation ---
+
+
+def test_representation_defaults_to_raw():
+    cfg = parse_config(_minimal_raw(), source="<test>")
+    assert cfg.representation == "raw"
+
+
+@pytest.mark.parametrize(
+    "level", ["raw", "rename_locals", "rename_all", "rename_all_literals"]
+)
+def test_representation_accepts_every_known_level(level):
+    cfg = parse_config(_minimal_raw(representation=level), source="<test>")
+    assert cfg.representation == level
+
+
+def test_representation_rejects_unknown_level_naming_alternatives():
+    with pytest.raises(ConfigError) as exc:
+        parse_config(_minimal_raw(representation="bogus"), source="<test>")
+    msg = str(exc.value)
+    assert "'representation'" in msg
+    assert "'raw'" in msg
+    assert "'rename_locals'" in msg
+    assert "'rename_all'" in msg
+    assert "'rename_all_literals'" in msg
+    assert "bogus" in msg
 
 
 # --- mask_api_key ---

@@ -10,32 +10,32 @@ FIXTURES = Path(__file__).parent / "fixtures" / "java"
 
 @pytest.fixture
 def example() -> list[CodeUnit]:
-    return parse((FIXTURES / "Example.java").read_bytes())
+    return parse((FIXTURES / "Example.java").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested() -> list[CodeUnit]:
-    return parse((FIXTURES / "Nested.java").read_bytes())
+    return parse((FIXTURES / "Nested.java").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested_in_body() -> list[CodeUnit]:
-    return parse((FIXTURES / "NestedInBody.java").read_bytes())
+    return parse((FIXTURES / "NestedInBody.java").read_bytes(), "raw")
 
 
 @pytest.fixture
 def body_sizes() -> list[CodeUnit]:
-    return parse((FIXTURES / "BodySizes.java").read_bytes())
+    return parse((FIXTURES / "BodySizes.java").read_bytes(), "raw")
 
 
 @pytest.fixture
 def comments() -> list[CodeUnit]:
-    return parse((FIXTURES / "Comments.java").read_bytes())
+    return parse((FIXTURES / "Comments.java").read_bytes(), "raw")
 
 
 @pytest.fixture
 def lambdas() -> list[CodeUnit]:
-    return parse((FIXTURES / "Lambdas.java").read_bytes())
+    return parse((FIXTURES / "Lambdas.java").read_bytes(), "raw")
 
 
 def test_extracts_all_methods(example):

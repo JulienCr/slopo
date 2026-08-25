@@ -13,7 +13,7 @@ def embed_units(batch: list[UnembeddedUnit], config: Config) -> list[EmbeddedUni
     try:
         response = litellm.embedding(  # type: ignore[call-overload]
             model=config.embedding_model,
-            input=[u.body for u in batch],
+            input=[u.embed_body for u in batch],
             dimensions=config.embedding_dimensions,
             api_key=config.embedding_api_key,
             **config.embedding_params,
@@ -30,5 +30,5 @@ def embed_units(batch: list[UnembeddedUnit], config: Config) -> list[EmbeddedUni
                 f"size {len(vector)}, but embedding_dimensions is configured as "
                 f"{config.embedding_dimensions}."
             )
-        result.append(EmbeddedUnit(body_hash=unit.body_hash, vector=vector))
+        result.append(EmbeddedUnit(embed_hash=unit.embed_hash, vector=vector))
     return result

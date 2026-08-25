@@ -10,32 +10,32 @@ FIXTURES = Path(__file__).parent / "fixtures" / "rust"
 
 @pytest.fixture
 def example() -> list[CodeUnit]:
-    return parse((FIXTURES / "Example.rs").read_bytes())
+    return parse((FIXTURES / "Example.rs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested() -> list[CodeUnit]:
-    return parse((FIXTURES / "Nested.rs").read_bytes())
+    return parse((FIXTURES / "Nested.rs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested_in_body() -> list[CodeUnit]:
-    return parse((FIXTURES / "NestedInBody.rs").read_bytes())
+    return parse((FIXTURES / "NestedInBody.rs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def body_sizes() -> list[CodeUnit]:
-    return parse((FIXTURES / "BodySizes.rs").read_bytes())
+    return parse((FIXTURES / "BodySizes.rs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def comments() -> list[CodeUnit]:
-    return parse((FIXTURES / "Comments.rs").read_bytes())
+    return parse((FIXTURES / "Comments.rs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def closures() -> list[CodeUnit]:
-    return parse((FIXTURES / "Closures.rs").read_bytes())
+    return parse((FIXTURES / "Closures.rs").read_bytes(), "raw")
 
 
 def test_extracts_methods_and_free_functions(example):

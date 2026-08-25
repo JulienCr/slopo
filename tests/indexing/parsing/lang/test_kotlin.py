@@ -10,32 +10,32 @@ FIXTURES = Path(__file__).parent / "fixtures" / "kotlin"
 
 @pytest.fixture
 def example() -> list[CodeUnit]:
-    return parse((FIXTURES / "Example.kt").read_bytes())
+    return parse((FIXTURES / "Example.kt").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested() -> list[CodeUnit]:
-    return parse((FIXTURES / "Nested.kt").read_bytes())
+    return parse((FIXTURES / "Nested.kt").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested_in_body() -> list[CodeUnit]:
-    return parse((FIXTURES / "NestedInBody.kt").read_bytes())
+    return parse((FIXTURES / "NestedInBody.kt").read_bytes(), "raw")
 
 
 @pytest.fixture
 def body_sizes() -> list[CodeUnit]:
-    return parse((FIXTURES / "BodySizes.kt").read_bytes())
+    return parse((FIXTURES / "BodySizes.kt").read_bytes(), "raw")
 
 
 @pytest.fixture
 def comments() -> list[CodeUnit]:
-    return parse((FIXTURES / "Comments.kt").read_bytes())
+    return parse((FIXTURES / "Comments.kt").read_bytes(), "raw")
 
 
 @pytest.fixture
 def lambdas() -> list[CodeUnit]:
-    return parse((FIXTURES / "Lambdas.kt").read_bytes())
+    return parse((FIXTURES / "Lambdas.kt").read_bytes(), "raw")
 
 
 def test_extracts_member_and_top_level_extension_functions(example):

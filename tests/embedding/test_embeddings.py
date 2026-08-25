@@ -24,6 +24,7 @@ _CONFIG = Config(
     similarity_threshold=0.9,
     rerank_threshold=0.93,
     body_node_count_threshold=10,
+    representation="raw",
 )
 
 
@@ -34,21 +35,21 @@ def _mock_response(vectors: list[list[float]]) -> MagicMock:
 
 
 def test_single_unit_mapped():
-    units = [UnembeddedUnit(body_hash="h7", body="def foo(): pass")]
+    units = [UnembeddedUnit(embed_hash="h7", embed_body="def foo(): pass")]
     with patch(
         "litellm.embedding",
         return_value=_mock_response([[1.0, 2.0, 3.0]]),
     ):
         result = embed_units(units, _CONFIG)
 
-    assert result == [EmbeddedUnit(body_hash="h7", vector=[1.0, 2.0, 3.0])]
+    assert result == [EmbeddedUnit(embed_hash="h7", vector=[1.0, 2.0, 3.0])]
 
 
 def test_multiple_units_preserve_order():
     units = [
-        UnembeddedUnit(body_hash="h1", body="def foo(): pass"),
-        UnembeddedUnit(body_hash="h2", body="def bar(): pass"),
-        UnembeddedUnit(body_hash="h3", body="def baz(): pass"),
+        UnembeddedUnit(embed_hash="h1", embed_body="def foo(): pass"),
+        UnembeddedUnit(embed_hash="h2", embed_body="def bar(): pass"),
+        UnembeddedUnit(embed_hash="h3", embed_body="def baz(): pass"),
     ]
     with patch(
         "litellm.embedding",
@@ -59,14 +60,14 @@ def test_multiple_units_preserve_order():
         result = embed_units(units, _CONFIG)
 
     assert result == [
-        EmbeddedUnit(body_hash="h1", vector=[1.0, 0.0, 0.0]),
-        EmbeddedUnit(body_hash="h2", vector=[0.0, 1.0, 0.0]),
-        EmbeddedUnit(body_hash="h3", vector=[0.0, 0.0, 1.0]),
+        EmbeddedUnit(embed_hash="h1", vector=[1.0, 0.0, 0.0]),
+        EmbeddedUnit(embed_hash="h2", vector=[0.0, 1.0, 0.0]),
+        EmbeddedUnit(embed_hash="h3", vector=[0.0, 0.0, 1.0]),
     ]
 
 
 def test_embedding_params_forwarded_to_litellm():
-    units = [UnembeddedUnit(body_hash="h1", body="def foo(): pass")]
+    units = [UnembeddedUnit(embed_hash="h1", embed_body="def foo(): pass")]
     config = replace(
         _CONFIG,
         embedding_params={"input_type": "search_document", "truncation": False},
@@ -83,7 +84,7 @@ def test_embedding_params_forwarded_to_litellm():
 
 
 def test_vector_size_mismatch_raises():
-    units = [UnembeddedUnit(body_hash="h1", body="def foo(): pass")]
+    units = [UnembeddedUnit(embed_hash="h1", embed_body="def foo(): pass")]
     with patch(
         "litellm.embedding",
         return_value=_mock_response([[1.0, 2.0]]),

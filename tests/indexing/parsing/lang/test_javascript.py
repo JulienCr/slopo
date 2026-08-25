@@ -10,22 +10,22 @@ FIXTURES = Path(__file__).parent / "fixtures" / "javascript"
 
 @pytest.fixture
 def example() -> list[CodeUnit]:
-    return parse((FIXTURES / "Example.js").read_bytes())
+    return parse((FIXTURES / "Example.js").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested() -> list[CodeUnit]:
-    return parse((FIXTURES / "Nested.js").read_bytes())
+    return parse((FIXTURES / "Nested.js").read_bytes(), "raw")
 
 
 @pytest.fixture
 def body_sizes() -> list[CodeUnit]:
-    return parse((FIXTURES / "BodySizes.js").read_bytes())
+    return parse((FIXTURES / "BodySizes.js").read_bytes(), "raw")
 
 
 @pytest.fixture
 def comments() -> list[CodeUnit]:
-    return parse((FIXTURES / "Comments.js").read_bytes())
+    return parse((FIXTURES / "Comments.js").read_bytes(), "raw")
 
 
 def test_extracts_functions_arrows_and_methods(example):

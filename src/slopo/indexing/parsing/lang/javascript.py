@@ -1,10 +1,12 @@
 import tree_sitter_javascript
 from tree_sitter import Language, Node, Parser
 
-from slopo.indexing.parsing.base import CodeUnit, hash_body
+from slopo.indexing.parsing.base import CodeUnit, build_code_unit
 
 _LANGUAGE = Language(tree_sitter_javascript.language())
 _PARSER = Parser(_LANGUAGE)
+
+_LANGUAGE_NAME = "javascript"
 
 _COMMENT_TYPES = {"comment"}
 
@@ -17,28 +19,31 @@ _UNIT_TYPES = {
 }
 
 
-def parse(source: bytes) -> list[CodeUnit]:
+def parse(source: bytes, representation: str) -> list[CodeUnit]:
     tree = _PARSER.parse(source)
     units: list[CodeUnit] = []
-    _collect_units(tree.root_node, source, units)
+    _collect_units(tree.root_node, source, units, representation)
     return units
 
 
-def _collect_units(node: Node, source: bytes, units: list[CodeUnit]) -> None:
+def _collect_units(
+    node: Node, source: bytes, units: list[CodeUnit], representation: str
+) -> None:
     if node.type in _UNIT_TYPES:
         body = _body_without_comments(node, source)
         units.append(
-            CodeUnit(
+            build_code_unit(
                 name=_unit_name(node),
+                node=node,
+                source=source,
                 body=body,
-                start_line=node.start_point[0] + 1,
-                end_line=node.end_point[0] + 1,
                 body_node_count=_count_body_nodes(node),
-                body_hash=hash_body(body),
+                language=_LANGUAGE_NAME,
+                representation=representation,
             )
         )
     for child in node.children:
-        _collect_units(child, source, units)
+        _collect_units(child, source, units, representation)
 
 
 def _unit_name(node: Node) -> str:

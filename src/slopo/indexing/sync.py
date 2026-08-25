@@ -28,6 +28,7 @@ def sync_index(
     directory: Path,
     body_node_count_threshold: int,
     exclude: list[str],
+    representation: str,
 ) -> SyncStats:
     indexed_files = 0
     skipped_files = 0
@@ -46,7 +47,7 @@ def sync_index(
             skipped_files += 1
             continue
 
-        units = parse_file(full_path)
+        units = parse_file(full_path, representation)
         units = filter_units(units, body_node_count_threshold)
 
         if existing is None:

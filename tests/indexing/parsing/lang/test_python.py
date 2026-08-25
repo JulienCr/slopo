@@ -10,22 +10,22 @@ FIXTURES = Path(__file__).parent / "fixtures" / "python"
 
 @pytest.fixture
 def example() -> list[CodeUnit]:
-    return parse((FIXTURES / "Example.py").read_bytes())
+    return parse((FIXTURES / "Example.py").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested() -> list[CodeUnit]:
-    return parse((FIXTURES / "Nested.py").read_bytes())
+    return parse((FIXTURES / "Nested.py").read_bytes(), "raw")
 
 
 @pytest.fixture
 def body_sizes() -> list[CodeUnit]:
-    return parse((FIXTURES / "BodySizes.py").read_bytes())
+    return parse((FIXTURES / "BodySizes.py").read_bytes(), "raw")
 
 
 @pytest.fixture
 def comments() -> list[CodeUnit]:
-    return parse((FIXTURES / "Comments.py").read_bytes())
+    return parse((FIXTURES / "Comments.py").read_bytes(), "raw")
 
 
 def test_extracts_module_functions_and_methods(example):

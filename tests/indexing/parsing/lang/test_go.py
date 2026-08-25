@@ -10,27 +10,27 @@ FIXTURES = Path(__file__).parent / "fixtures" / "go"
 
 @pytest.fixture
 def example() -> list[CodeUnit]:
-    return parse((FIXTURES / "Example.go").read_bytes())
+    return parse((FIXTURES / "Example.go").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested_in_body() -> list[CodeUnit]:
-    return parse((FIXTURES / "NestedInBody.go").read_bytes())
+    return parse((FIXTURES / "NestedInBody.go").read_bytes(), "raw")
 
 
 @pytest.fixture
 def body_sizes() -> list[CodeUnit]:
-    return parse((FIXTURES / "BodySizes.go").read_bytes())
+    return parse((FIXTURES / "BodySizes.go").read_bytes(), "raw")
 
 
 @pytest.fixture
 def comments() -> list[CodeUnit]:
-    return parse((FIXTURES / "Comments.go").read_bytes())
+    return parse((FIXTURES / "Comments.go").read_bytes(), "raw")
 
 
 @pytest.fixture
 def closures() -> list[CodeUnit]:
-    return parse((FIXTURES / "Closures.go").read_bytes())
+    return parse((FIXTURES / "Closures.go").read_bytes(), "raw")
 
 
 def test_extracts_methods_and_top_level_functions(example):

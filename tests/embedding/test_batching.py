@@ -6,7 +6,8 @@ from slopo.embedding.models import UnembeddedUnit
 
 def _units(*bodies: str) -> list[UnembeddedUnit]:
     return [
-        UnembeddedUnit(body_hash=str(i), body=body) for i, body in enumerate(bodies)
+        UnembeddedUnit(embed_hash=str(i), embed_body=body)
+        for i, body in enumerate(bodies)
     ]
 
 

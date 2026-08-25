@@ -14,7 +14,11 @@ def run_index(
 
     with conn:
         stats = sync_index(
-            conn, cfg.source_dir, cfg.body_node_count_threshold, cfg.source_dir_exclude
+            conn,
+            cfg.source_dir,
+            cfg.body_node_count_threshold,
+            cfg.source_dir_exclude,
+            cfg.representation,
         )
 
     log(
