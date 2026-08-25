@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from typing import Iterator
 
@@ -170,6 +171,62 @@ def test_cassette_missing_file_rejected(tmp_path):
         load_cassette(tmp_path / "absent.json")
 
 
+def test_cassette_round_trip_preserves_input_prefix_when_absent(tmp_path):
+    path = tmp_path / "cassette.json"
+    save_cassette(path, {"h1": [0.0] * DIMENSIONS}, model_key=DEFAULT_MODEL)
+
+    cassette = load_cassette(path, model_key=DEFAULT_MODEL)
+
+    assert cassette.input_prefix == MODELS[DEFAULT_MODEL].input_prefix
+    assert cassette.input_prefix is None
+
+
+def test_cassette_round_trip_preserves_input_prefix_when_present(tmp_path):
+    prefixed_key = next(
+        key for key, profile in MODELS.items() if profile.input_prefix is not None
+    )
+    path = tmp_path / "cassette.json"
+    save_cassette(
+        path, {"h1": [0.0] * MODELS[prefixed_key].dimensions}, model_key=prefixed_key
+    )
+
+    cassette = load_cassette(path, model_key=prefixed_key)
+
+    assert cassette.input_prefix == MODELS[prefixed_key].input_prefix
+
+
+def test_cassette_input_prefix_mismatch_rejected_naming_both(tmp_path):
+    prefixed_key = next(
+        key for key, profile in MODELS.items() if profile.input_prefix is not None
+    )
+    path = tmp_path / "cassette.json"
+    save_cassette(
+        path, {"h1": [0.0] * MODELS[prefixed_key].dimensions}, model_key=prefixed_key
+    )
+
+    raw = path.read_text(encoding="utf-8")
+    stored_prefix = MODELS[prefixed_key].input_prefix
+    assert stored_prefix is not None
+    raw = raw.replace(json.dumps(stored_prefix), json.dumps("a different prefix"))
+    path.write_text(raw, encoding="utf-8")
+
+    with pytest.raises(CassetteError, match="a different prefix") as excinfo:
+        load_cassette(path, model_key=prefixed_key)
+    assert repr(stored_prefix) in str(excinfo.value)
+
+
+def test_cassette_missing_input_prefix_field_rejected(tmp_path):
+    path = tmp_path / "cassette.json"
+    save_cassette(path, {"h1": [0.0] * DIMENSIONS}, model_key=DEFAULT_MODEL)
+
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    del raw["input_prefix"]
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(CassetteError, match="re-record"):
+        load_cassette(path, model_key=DEFAULT_MODEL)
+
+
 # --- seed_embeddings ---
 
 
@@ -187,6 +244,7 @@ def test_seed_embeddings_raises_when_body_hash_missing_from_cassette(conn):
     cassette = Cassette(
         model="m",
         dimensions=DIMENSIONS,
+        input_prefix=None,
         thresholds={},
         vectors={"other-hash": np.zeros(3)},
     )

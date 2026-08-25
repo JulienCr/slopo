@@ -103,6 +103,7 @@ class CassetteError(Exception):
 class Cassette:
     model: str
     dimensions: int
+    input_prefix: str | None
     thresholds: dict[str, float | int | str]
     vectors: dict[str, np.ndarray]
 
@@ -240,6 +241,7 @@ def save_cassette(
     payload = {
         "model": profile.model,
         "dimensions": profile.dimensions,
+        "input_prefix": profile.input_prefix,
         "thresholds": {
             "similarity_threshold": SIMILARITY_THRESHOLD,
             "rerank_threshold": RERANK_THRESHOLD,
@@ -267,6 +269,19 @@ def load_cassette(path: Path, model_key: str = DEFAULT_MODEL) -> Cassette:
             f"cassette dimensions {raw['dimensions']} do not match pinned"
             f" {profile.dimensions}"
         )
+    # embed_hash does not cover the prefix (see src/slopo/db.py), so a cassette
+    # recorded under a different prefix would otherwise be silently accepted.
+    # An absent field predates this check and must not be read as "no prefix".
+    if "input_prefix" not in raw:
+        raise CassetteError(
+            f"cassette at {path} has no recorded input_prefix; re-record it"
+            " with record.py"
+        )
+    if raw["input_prefix"] != profile.input_prefix:
+        raise CassetteError(
+            f"cassette input_prefix {raw['input_prefix']!r} does not match pinned"
+            f" {profile.input_prefix!r}; re-record it with record.py"
+        )
 
     vectors = {
         body_hash: np.frombuffer(base64.b64decode(encoded), dtype=np.float32)
@@ -275,6 +290,7 @@ def load_cassette(path: Path, model_key: str = DEFAULT_MODEL) -> Cassette:
     return Cassette(
         model=raw["model"],
         dimensions=raw["dimensions"],
+        input_prefix=raw["input_prefix"],
         thresholds=raw["thresholds"],
         vectors=vectors,
     )
