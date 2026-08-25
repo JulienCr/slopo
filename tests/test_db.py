@@ -88,8 +88,19 @@ def test_database_created_with_one_prefix_refuses_another(tmp_path: Path):
         open_db(other).close()
 
     assert exc.value.field == "embedding_input_prefix"
-    assert exc.value.stored == "Find equivalent code:\n"
-    assert exc.value.current == "Find similar code:\n"
+    assert exc.value.stored == repr("Find equivalent code:\n")
+    assert exc.value.current == repr("Find similar code:\n")
+
+
+def test_unset_prefix_is_distinguishable_from_the_literal_string_none(tmp_path: Path):
+    cfg = _config(tmp_path, embedding_input_prefix=None)
+    create_db(cfg).close()
+
+    other = _config(tmp_path, embedding_input_prefix="None")
+    with pytest.raises(ConfigurationMismatchError) as exc:
+        open_db(other).close()
+
+    assert exc.value.stored != exc.value.current
 
 
 def test_database_created_without_prefix_reopens_fine_without_one(tmp_path: Path):

@@ -113,8 +113,10 @@ def _check_metadata(conn: sqlite3.Connection, cfg: Config) -> None:
     # The prefix is prepended before embedding but never hashed, so a mismatch
     # here would silently reuse vectors computed under a different prefix.
     if stored[4] != cfg.embedding_input_prefix:
+        # repr, not str: an unset prefix and the literal string "None" render
+        # identically under str, so the message would hide the mismatch it reports.
         raise ConfigurationMismatchError(
             "embedding_input_prefix",
-            str(stored[4]),
-            str(cfg.embedding_input_prefix),
+            repr(stored[4]),
+            repr(cfg.embedding_input_prefix),
         )

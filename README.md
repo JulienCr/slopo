@@ -151,7 +151,7 @@ embedding_params:
 ```
 - `embedding_batch_size` and `embedding_batch_chars`: Requests to the embedding API are batched for performance. Defaults are fine for most cases.
 - `embedding_request_delay`: Delay in seconds after every batched request, by default no delay. Increase if you reach rate limits.
-- `embedding_input_prefix`: Text prepended to every code unit before it is sent for embedding, without affecting caching or storage. Some models expect a task-specific instruction prefix (e.g. `jina-code-embeddings` models) and score noticeably worse without it; check your model's card.
+- `embedding_input_prefix`: Text prepended to every code unit before it is sent for embedding. It is not part of the hash that keys cached embeddings, which is why it can't be changed after first indexing: changing it would alter what the model sees while every cached vector stayed in place. Some models expect a task-specific instruction prefix (e.g. `jina-code-embeddings` models) and score noticeably worse without it; check your model's card.
 - `similarity_threshold`: Controls minimal cosine similarity between embeddings.
 - `rerank_threshold`: Controls minimal similarity after applying a boost reflecting distance in the codebase.
 - `body_node_count_threshold`: Number of AST nodes inside the body (excluding signature and annotations). This value reflects the minimum code complexity of the included code unit, more precise than text length. Increase if you notice unwanted, too-small code units in the report.
