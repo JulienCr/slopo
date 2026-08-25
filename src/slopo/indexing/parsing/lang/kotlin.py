@@ -24,7 +24,7 @@ def _collect_units(
     node: Node, source: bytes, units: list[CodeUnit], representation: str
 ) -> None:
     if node.type in _UNIT_TYPES:
-        body = _body_without_comments(node, source)
+        body, removal_spans = _body_without_comments(node, source)
         units.append(
             build_code_unit(
                 name=_unit_name(node),
@@ -34,6 +34,7 @@ def _collect_units(
                 body_node_count=_count_body_nodes(node),
                 language=_LANGUAGE_NAME,
                 representation=representation,
+                removal_spans=removal_spans,
             )
         )
     for child in node.children:
@@ -72,7 +73,9 @@ def _last_identifier(node: Node) -> Node | None:
     return next((c for c in reversed(node.children) if c.type == "identifier"), None)
 
 
-def _body_without_comments(function: Node, source: bytes) -> str:
+def _body_without_comments(
+    function: Node, source: bytes
+) -> tuple[str, frozenset[tuple[int, int]]]:
     comment_spans: list[tuple[int, int]] = []
     _collect_comment_spans(function, comment_spans)
 
@@ -82,7 +85,7 @@ def _body_without_comments(function: Node, source: bytes) -> str:
         pieces.append(source[cursor:start])
         cursor = end
     pieces.append(source[cursor : function.end_byte])
-    return b"".join(pieces).decode()
+    return b"".join(pieces).decode(), frozenset(comment_spans)
 
 
 def _collect_comment_spans(node: Node, spans: list[tuple[int, int]]) -> None:

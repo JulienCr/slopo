@@ -121,6 +121,12 @@ def test_strips_line_block_and_kdoc_comments_from_body(comments):
     )
 
 
+def test_raw_embed_body_is_exactly_body_when_source_has_comments(comments):
+    unit = comments[0]
+    assert unit.embed_body == unit.body
+    assert unit.embed_hash == unit.body_hash
+
+
 def test_anonymous_function_bound_to_variable_takes_binding_name(lambdas):
     doubler = next(u for u in lambdas if u.name == "doubler")
     assert doubler.body == "fun(x: Int): Int { return x * 2 }"

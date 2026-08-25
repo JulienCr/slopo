@@ -127,3 +127,39 @@ def test_keyword_argument_name_is_kept_but_its_value_is_renamed():
     assert normalize(source, node, "python", "rename_all") == (
         "def f(v1):\n    return v2(v1, key=v1)"
     )
+
+
+def test_parameter_named_like_a_builtin_is_renamed_consistently():
+    source = b"def f(round, list):\n    round = list + 1\n    return round\n"
+    node = python_function(source)
+    assert normalize(source, node, "python", "rename_all") == (
+        "def f(v1, v2):\n    v1 = v2 + 1\n    return v1"
+    )
+
+
+def test_assignment_target_named_like_a_builtin_is_renamed_consistently():
+    source = b"def f(values):\n    round = sum(values)\n    return round\n"
+    node = python_function(source)
+    assert normalize(source, node, "python", "rename_all") == (
+        "def f(v1):\n    v2 = sum(v1)\n    return v2"
+    )
+
+
+def test_two_functions_differing_only_by_a_builtin_named_local_canonicalize_alike():
+    round_source = b"def compute(values):\n    round = sum(values)\n    return round\n"
+    total_source = b"def compute(values):\n    total = sum(values)\n    return total\n"
+    round_out = normalize(
+        round_source, python_function(round_source), "python", "rename_all"
+    )
+    total_out = normalize(
+        total_source, python_function(total_source), "python", "rename_all"
+    )
+    assert round_out == total_out
+
+
+def test_builtin_used_as_a_default_value_is_not_treated_as_a_binding():
+    source = b"def f(list=round):\n    return list\n"
+    node = python_function(source)
+    assert normalize(source, node, "python", "rename_all") == (
+        "def f(v1=round):\n    return v1"
+    )

@@ -119,6 +119,12 @@ def test_strips_line_block_and_doc_comments_from_body(comments):
     )
 
 
+def test_raw_embed_body_is_exactly_body_when_source_has_comments(comments):
+    with_comments = next(u for u in comments if u.name == "with_comments")
+    assert with_comments.embed_body == with_comments.body
+    assert with_comments.embed_hash == with_comments.body_hash
+
+
 def test_closure_bound_to_variable_takes_binding_name(closures):
     doubler = next(u for u in closures if u.name == "doubler")
     assert doubler.body == "|x: i32| x * 2"

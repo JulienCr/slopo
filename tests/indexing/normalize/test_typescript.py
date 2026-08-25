@@ -82,3 +82,43 @@ def test_javascript_is_registered_to_the_same_profile_as_typescript():
     assert normalize(source, node, "javascript", "rename_all") == (
         "function f(v1, v2) {\n  return v1 + v2;\n}"
     )
+
+
+def test_parameter_named_like_a_builtin_is_renamed_consistently():
+    source = (
+        b"function f(console, Math) {\n  console = Math + 1;\n  return console;\n}\n"
+    )
+    node = typescript_function(source)
+    assert normalize(source, node, "typescript", "rename_all") == (
+        "function f(v1, v2) {\n  v1 = v2 + 1;\n  return v1;\n}"
+    )
+
+
+def test_destructured_parameter_and_let_declaration_named_like_a_builtin():
+    source = (
+        b"function f({console}) {\n"
+        b"  let Math = console;\n"
+        b"  Math += 1;\n"
+        b"  return Math;\n"
+        b"}\n"
+    )
+    node = typescript_function(source)
+    assert normalize(source, node, "typescript", "rename_all") == (
+        "function f({v1}) {\n  let v2 = v1;\n  v2 += 1;\n  return v2;\n}"
+    )
+
+
+def test_two_functions_differing_only_by_a_builtin_named_local_canonicalize_alike():
+    console_source = (
+        b"function compute(values) {\n  console = values;\n  return console;\n}\n"
+    )
+    total_source = (
+        b"function compute(values) {\n  total = values;\n  return total;\n}\n"
+    )
+    console_out = normalize(
+        console_source, typescript_function(console_source), "typescript", "rename_all"
+    )
+    total_out = normalize(
+        total_source, typescript_function(total_source), "typescript", "rename_all"
+    )
+    assert console_out == total_out

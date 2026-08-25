@@ -108,3 +108,17 @@ def test_strips_line_comments_and_docstrings_but_keeps_string_assignments(commen
 
 def test_docstring_is_excluded_from_body_node_count(comments):
     assert comments[0].body_node_count == 18
+
+
+def test_raw_embed_body_is_exactly_body_when_source_has_comments():
+    unit = parse((FIXTURES / "Comments.py").read_bytes(), "raw")[0]
+    assert unit.embed_body == unit.body
+    assert unit.embed_hash == unit.body_hash
+
+
+def test_normalized_levels_strip_comments_and_docstrings():
+    for level in ("rename_locals", "rename_all", "rename_all_literals"):
+        unit = parse((FIXTURES / "Comments.py").read_bytes(), level)[0]
+        assert "leading comment" not in unit.embed_body
+        assert "trailing comment" not in unit.embed_body
+        assert "Add two numbers" not in unit.embed_body

@@ -138,7 +138,9 @@ def test_normalized_representation_stores_normalizer_output(
     tmp_path: Path, conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setattr(
-        base, "normalize", lambda source, node, language, level: "NORMALIZED"
+        base,
+        "normalize",
+        lambda source, node, language, level, removal_spans: "NORMALIZED",
     )
     (tmp_path / "Calculator.java").write_text(_JAVA)
 

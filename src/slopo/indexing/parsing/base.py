@@ -35,8 +35,9 @@ def build_code_unit(
     body_node_count: int,
     language: str,
     representation: str,
+    removal_spans: frozenset[tuple[int, int]] = frozenset(),
 ) -> CodeUnit:
-    embed_body = normalize(source, node, language, representation)
+    embed_body = normalize(source, node, language, representation, removal_spans)
     return CodeUnit(
         name=name,
         body=body,

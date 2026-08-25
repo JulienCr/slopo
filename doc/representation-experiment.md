@@ -79,6 +79,12 @@ so the per-language split should not yet be read as a statement about the langua
 A 0.10 gain on this corpus, bought with a regression on one language and resting on one binding
 outlier, does not justify changing the default. `raw` stays the default.
 
+**The renamer matches by spelling, not by scope.** `is_binding_position` (see
+`normalize/engine.py`) makes a parameter or assignment target rename consistently even when it
+collides with a builtin name, but a free-standing reference to something bound elsewhere — a
+call to a module-level function, an imported name — still renames the same way wherever it is
+spelled the same, whatever it actually refers to. Full binding analysis is a non-goal of issue #2.
+
 ## What to try next
 
 **A rank-based metric.** Average precision over the labeled pairs uses the whole ranking instead

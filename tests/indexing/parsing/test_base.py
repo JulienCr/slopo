@@ -33,7 +33,9 @@ def _function_node(source: str):
 def test_raw_level_keeps_embed_body_and_embed_hash_identical_to_body(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    monkeypatch.setattr(base, "normalize", lambda source, node, language, level: level)
+    monkeypatch.setattr(
+        base, "normalize", lambda source, node, language, level, removal_spans: level
+    )
     node = _function_node("def foo(a): return a")
 
     unit = build_code_unit(
@@ -54,7 +56,9 @@ def test_normalize_output_flows_into_embed_body_and_embed_hash(
     monkeypatch: pytest.MonkeyPatch,
 ):
     monkeypatch.setattr(
-        base, "normalize", lambda source, node, language, level: "NORMALIZED"
+        base,
+        "normalize",
+        lambda source, node, language, level, removal_spans: "NORMALIZED",
     )
     node = _function_node("def foo(a): return a")
 
@@ -79,7 +83,7 @@ def test_normalize_receives_the_language_and_level_it_was_called_with(
 ):
     seen = {}
 
-    def fake_normalize(source, node, language, level):
+    def fake_normalize(source, node, language, level, removal_spans):
         seen["source"] = source
         seen["language"] = language
         seen["level"] = level

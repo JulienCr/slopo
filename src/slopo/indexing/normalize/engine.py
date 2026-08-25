@@ -1,12 +1,13 @@
 """Generic byte-span rename engine shared by all language normalizers.
 
-A language module supplies a `LanguageProfile` describing which node types
-count as renamable identifiers, which are number/string literals, which
-identifiers are kept regardless of position (builtins), and a syntactic
-predicate for identifiers that are kept because of *where* they sit (for
-example the property side of an attribute access). The engine walks the
-function's subtree once, decides a replacement (or "keep") for every
-relevant leaf, and splices the result out of the original source bytes.
+A `LanguageProfile` marks which node types are renamable identifiers,
+literals, always-kept builtins, and syntactically-kept positions (e.g. an
+attribute's property side). The engine walks the unit's subtree once and
+splices replacements into the original source bytes.
+
+Renaming is by spelling, not scope: there is no binding analysis beyond
+`is_binding_position`'s narrow parameter/assignment-target check (see
+doc/representation-experiment.md and issue #2's non-goals).
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ class LanguageProfile:
     builtins: frozenset[str]
     import_ancestor_types: frozenset[str]
     is_kept_position: Callable[[Node], bool]
+    is_binding_position: Callable[[Node], bool]
 
 
 def unit_name_node(node: Node) -> Node | None:
@@ -42,12 +44,25 @@ def text_of(source: bytes, node: Node) -> str:
     return source[node.start_byte : node.end_byte].decode("utf-8")
 
 
-def render(source: bytes, node: Node, profile: LanguageProfile, level: str) -> str:
+def render(
+    source: bytes,
+    node: Node,
+    profile: LanguageProfile,
+    level: str,
+    removal_spans: frozenset[tuple[int, int]] = frozenset(),
+) -> str:
     name_node = unit_name_node(node)
     replacements: dict[int, tuple[int, str]] = {}
     var_numbers: dict[str, str] = {}
+    bound_names = _collect_bound_names(node, source, profile)
 
     def visit(n: Node, inside_import: bool) -> None:
+        # A comment or docstring span is spliced out entirely, before any
+        # rename/literal handling, so its text never reaches the embedding.
+        if (n.start_byte, n.end_byte) in removal_spans:
+            replacements[n.start_byte] = (n.end_byte, "")
+            return
+
         inside_import = inside_import or n.type in profile.import_ancestor_types
 
         # tree-sitter Node wrappers are recreated on each access, so `is`
@@ -60,8 +75,13 @@ def render(source: bytes, node: Node, profile: LanguageProfile, level: str) -> s
         if n.type in profile.identifier_types:
             if inside_import:
                 return
+            if profile.is_kept_position(n):
+                return
             text = text_of(source, n)
-            if text in profile.builtins or profile.is_kept_position(n):
+            # A name bound anywhere in the function (a parameter, an assignment
+            # target) shadows the builtin of the same spelling everywhere it is
+            # used here, so every occurrence renames the same way as any other.
+            if text in profile.builtins and text not in bound_names:
                 return
             number = var_numbers.setdefault(text, f"v{len(var_numbers) + 1}")
             replacements[n.start_byte] = (n.end_byte, number)
@@ -82,6 +102,21 @@ def render(source: bytes, node: Node, profile: LanguageProfile, level: str) -> s
     return _splice(source, node, replacements)
 
 
+def _collect_bound_names(
+    node: Node, source: bytes, profile: LanguageProfile
+) -> frozenset[str]:
+    names: set[str] = set()
+
+    def walk(n: Node) -> None:
+        if n.type in profile.identifier_types and profile.is_binding_position(n):
+            names.add(text_of(source, n))
+        for child in n.children:
+            walk(child)
+
+    walk(node)
+    return frozenset(names)
+
+
 def _splice(source: bytes, node: Node, replacements: dict[int, tuple[int, str]]) -> str:
     pieces: list[bytes] = []
     cursor = node.start_byte
@@ -92,3 +127,11 @@ def _splice(source: bytes, node: Node, replacements: dict[int, tuple[int, str]])
         cursor = end
     pieces.append(source[cursor : node.end_byte])
     return b"".join(pieces).decode("utf-8")
+
+
+def strip_removed(
+    source: bytes, node: Node, removal_spans: frozenset[tuple[int, int]]
+) -> str:
+    """Splice `node`'s span with `removal_spans` cut out, nothing else changed."""
+    replacements = {start: (end, "") for start, end in removal_spans}
+    return _splice(source, node, replacements)
