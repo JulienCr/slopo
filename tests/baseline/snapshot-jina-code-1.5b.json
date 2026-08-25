@@ -17,8 +17,8 @@
     "clusters": 4,
     "recall": 0.2,
     "false_positives": 0,
-    "separation_margin": -0.1577,
-    "zero_fp_threshold_floor": 0.7595,
+    "separation_margin": -0.157,
+    "zero_fp_threshold_floor": 0.7593,
     "max_recall_at_zero_fp": 0.7,
     "by_language": {
       "python": {
@@ -26,7 +26,7 @@
         "distinct": 10,
         "recall": 0.2,
         "false_positives": 0,
-        "separation_margin": -0.1577,
+        "separation_margin": -0.157,
         "max_recall_at_zero_fp": 0.6
       },
       "typescript": {
@@ -63,8 +63,8 @@
       "kind": "duplicate",
       "a": "billing/invoices.py::calculate_invoice_total",
       "b": "orders/checkout.py::compute_order_total",
-      "similarity": 0.7505,
-      "rerank_score": 0.8068,
+      "similarity": 0.7504,
+      "rerank_score": 0.8067,
       "same_cluster": false
     },
     {
@@ -81,8 +81,8 @@
       "kind": "duplicate",
       "a": "billing/pricing.py::apply_discount",
       "b": "orders/checkout.py::apply_coupon_discount",
-      "similarity": 0.8538,
-      "rerank_score": 0.9178,
+      "similarity": 0.8539,
+      "rerank_score": 0.9179,
       "same_cluster": false
     },
     {
@@ -90,8 +90,8 @@
       "kind": "duplicate",
       "a": "billing/invoices.py::format_invoice_number",
       "b": "billing/invoices.py::format_receipt_number",
-      "similarity": 0.873,
-      "rerank_score": 0.9006,
+      "similarity": 0.8728,
+      "rerank_score": 0.9003,
       "same_cluster": false
     },
     {
@@ -108,8 +108,8 @@
       "kind": "duplicate",
       "a": "geometry/vectors.py::compute_vector_length",
       "b": "geometry/shapes.py::compute_segment_magnitude",
-      "similarity": 0.6018,
-      "rerank_score": 0.6018,
+      "similarity": 0.6024,
+      "rerank_score": 0.6024,
       "same_cluster": false
     },
     {
@@ -117,8 +117,8 @@
       "kind": "duplicate",
       "a": "reports/summary.py::aggregate_daily_totals",
       "b": "reports/summary.py::aggregate_weekly_totals",
-      "similarity": 0.8671,
-      "rerank_score": 0.8671,
+      "similarity": 0.8674,
+      "rerank_score": 0.8674,
       "same_cluster": false
     },
     {
@@ -126,8 +126,8 @@
       "kind": "duplicate",
       "a": "util/validation.py::is_valid_postal_code",
       "b": "util/validation.py::is_valid_zip_code",
-      "similarity": 0.7543,
-      "rerank_score": 0.7543,
+      "similarity": 0.7542,
+      "rerank_score": 0.7542,
       "same_cluster": false
     },
     {
@@ -207,8 +207,8 @@
       "kind": "duplicate",
       "a": "ts/matchmaking/queue.ts::estimateQueueWaitTime",
       "b": "ts/matchmaking/queue.ts::estimateMatchWaitTime",
-      "similarity": 0.8891,
-      "rerank_score": 0.8891,
+      "similarity": 0.8893,
+      "rerank_score": 0.8893,
       "same_cluster": false
     },
     {
@@ -225,8 +225,8 @@
       "kind": "distinct",
       "a": "util/validation.py::validate_email",
       "b": "util/validation.py::validate_phone",
-      "similarity": 0.361,
-      "rerank_score": 0.361,
+      "similarity": 0.3609,
+      "rerank_score": 0.3609,
       "same_cluster": false
     },
     {
@@ -234,8 +234,8 @@
       "kind": "distinct",
       "a": "admin/users.py::is_password_strong",
       "b": "util/validation.py::is_username_valid",
-      "similarity": 0.3681,
-      "rerank_score": 0.3957,
+      "similarity": 0.3682,
+      "rerank_score": 0.3959,
       "same_cluster": false
     },
     {
@@ -243,8 +243,8 @@
       "kind": "distinct",
       "a": "billing/invoices.py::calculate_tax_amount",
       "b": "orders/checkout.py::calculate_shipping_cost",
-      "similarity": 0.5597,
-      "rerank_score": 0.6016,
+      "similarity": 0.5598,
+      "rerank_score": 0.6018,
       "same_cluster": false
     },
     {
@@ -252,8 +252,8 @@
       "kind": "distinct",
       "a": "geometry/shapes.py::compute_circle_area",
       "b": "geometry/shapes.py::compute_circle_circumference",
-      "similarity": 0.7595,
-      "rerank_score": 0.7595,
+      "similarity": 0.7593,
+      "rerank_score": 0.7593,
       "same_cluster": false
     },
     {
@@ -288,8 +288,8 @@
       "kind": "distinct",
       "a": "geometry/vectors.py::compute_vector_length",
       "b": "geometry/vectors.py::compute_dot_product",
-      "similarity": 0.626,
-      "rerank_score": 0.626,
+      "similarity": 0.6255,
+      "rerank_score": 0.6255,
       "same_cluster": false
     },
     {
@@ -306,8 +306,8 @@
       "kind": "distinct",
       "a": "util/validation.py::is_valid_postal_code",
       "b": "util/validation.py::is_valid_credit_card_number",
-      "similarity": 0.3829,
-      "rerank_score": 0.3829,
+      "similarity": 0.383,
+      "rerank_score": 0.383,
       "same_cluster": false
     },
     {
@@ -315,8 +315,8 @@
       "kind": "distinct",
       "a": "ts/inventory/stock.ts::findLowestDurabilityItem",
       "b": "ts/inventory/stock.ts::sortItemsByRarity",
-      "similarity": 0.4535,
-      "rerank_score": 0.4535,
+      "similarity": 0.4538,
+      "rerank_score": 0.4538,
       "same_cluster": false
     },
     {
@@ -351,8 +351,8 @@
       "kind": "distinct",
       "a": "ts/matchmaking/rating.ts::computeEloDelta",
       "b": "ts/matchmaking/rating.ts::computeSkillTier",
-      "similarity": 0.4547,
-      "rerank_score": 0.4547,
+      "similarity": 0.4555,
+      "rerank_score": 0.4555,
       "same_cluster": false
     },
     {
@@ -369,8 +369,8 @@
       "kind": "distinct",
       "a": "ts/quests/rewards.ts::calculateBonusGold",
       "b": "ts/quests/bonuses.ts::computeItemDropChance",
-      "similarity": 0.5992,
-      "rerank_score": 0.5992,
+      "similarity": 0.5996,
+      "rerank_score": 0.5996,
       "same_cluster": false
     },
     {
@@ -378,8 +378,8 @@
       "kind": "distinct",
       "a": "ts/quests/bonuses.ts::computeGoldBonus",
       "b": "ts/quests/bonuses.ts::computeItemDropChance",
-      "similarity": 0.5587,
-      "rerank_score": 0.5587,
+      "similarity": 0.5589,
+      "rerank_score": 0.5589,
       "same_cluster": false
     },
     {
@@ -396,8 +396,8 @@
       "kind": "distinct",
       "a": "ts/matchmaking/rating.ts::clampRatingDelta",
       "b": "ts/matchmaking/queue.ts::estimateMatchWaitTime",
-      "similarity": 0.398,
-      "rerank_score": 0.398,
+      "similarity": 0.3986,
+      "rerank_score": 0.3986,
       "same_cluster": false
     }
   ]

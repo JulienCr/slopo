@@ -53,6 +53,37 @@ On the table above, `jina-embeddings-v2-base-code` at 0.74 / 0.76 buys fifteen p
 two false positives out of twenty distinct pairs. If reviewing clusters is cheap for you — and with
 an agent doing the reading, it is — that trade is worth making.
 
+## Validated on real code, and what it changes
+
+The table above comes from 20 labeled duplicate pairs and 20 labeled distinct pairs. A real
+repository holds far more pairs than that, so a false-positive rate that reads as zero over 20
+comparisons is not zero over the hundreds of thousands a real codebase produces. The corpus optimum
+is therefore a floor on what to expect, not a setting to adopt unexamined.
+
+Measured on a 782-unit TypeScript and Python application, with `jina-embeddings-v2-base-code` and
+`body_node_count_threshold: 25`. The last column counts clusters whose largest snippet reaches 15
+lines — the ones worth acting on, as opposed to a shared two-line idiom:
+
+| `similarity_threshold` | clusters | units flagged | clusters over 15 lines |
+|---|---|---|---|
+| 0.92 (default) | 14 | 2.5 % | **3** |
+| 0.88 | 33 | 7.9 % | 14 |
+| 0.85 | 44 | 12.5 % | **21** |
+| 0.82 | 50 | 15.6 % | 26 |
+| 0.78 | 62 | 22.1 % | 35 |
+| 0.75 | 74 | 27.3 % | 40 |
+
+At the default this codebase yields **three** substantial duplications. Whole shared blocks of
+twenty lines and more sit at similarities between 0.80 and 0.90 and are simply invisible.
+
+0.85 surfaces seven times as many for a list of 44 clusters, which one reviewer or one agent can
+work through. Below 0.80 the yield keeps rising, but so does the reading: 0.78 adds fourteen more
+substantial clusters at the price of doubling the total.
+
+So **0.85 is the better starting point on a real repository**, and the corpus figure of 0.78 is what
+to move toward once you trust the output and want the tail. Both beat the default by a wide margin,
+which is the finding that matters.
+
 ## Recalibrating for another model
 
 The corpus here is small and its pairs are ours, so the numbers above are a starting point, not a

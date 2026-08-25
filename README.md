@@ -88,14 +88,16 @@ embedding_dimensions: 256
 ```yaml
 embedding_model: ollama/unclemusclez/jina-embeddings-v2-base-code
 embedding_dimensions: 768
-similarity_threshold: 0.78
-rerank_threshold: 0.80
+similarity_threshold: 0.85
+rerank_threshold: 0.87
 ```
 
 The default thresholds are calibrated for the Jina API model above. This one puts equivalent code
 lower on the cosine scale, and at the defaults it misses three quarters of the duplicates in the
-fork's labeled corpus. See [doc/threshold-calibration.md](doc/threshold-calibration.md) for the
-measurements, for `jina-code-embeddings-1.5b`, and for how to calibrate another model.
+fork's labeled corpus. On a real 782-unit repository it surfaced three substantial duplications
+at the default, against twenty-one at the value above. See
+[doc/threshold-calibration.md](doc/threshold-calibration.md) for the measurements, for going
+lower still, for `jina-code-embeddings-1.5b`, and for how to calibrate another model.
 
 ### Analysis
 
