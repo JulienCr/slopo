@@ -26,6 +26,7 @@ from slopo.config import Config
 from slopo.db import create_db
 from slopo.embedding.db import load_embeddings
 from slopo.indexing.command import run_index
+from slopo.indexing.normalize import LEVELS
 
 BASELINE_DIR = Path(__file__).resolve().parent
 CORPUS_DIR = BASELINE_DIR / "corpus"
@@ -35,11 +36,14 @@ SNAPSHOT_FILE = BASELINE_DIR / "snapshot.json"
 
 # Pinned here, deliberately not read from slopo's config defaults: a future
 # change to a default must produce a visible baseline update, not silent drift.
+# REPRESENTATION is likewise pinned: the committed snapshot must describe one
+# known configuration.
 MODEL = "ollama/unclemusclez/jina-embeddings-v2-base-code"
 DIMENSIONS = 768
 SIMILARITY_THRESHOLD = 0.92
 RERANK_THRESHOLD = 0.94
 BODY_NODE_COUNT_THRESHOLD = 10
+REPRESENTATION = "raw"
 
 _BLOCK_SIZE = 1000
 _MAX_REPORTED_MISSING_HASHES = 10
@@ -69,7 +73,7 @@ class CassetteError(Exception):
 class Cassette:
     model: str
     dimensions: int
-    thresholds: dict[str, float | int]
+    thresholds: dict[str, float | int | str]
     vectors: dict[str, np.ndarray]
 
 
@@ -88,7 +92,7 @@ class PairResult:
 class BaselineReport:
     model: str
     dimensions: int
-    thresholds: dict[str, float | int]
+    thresholds: dict[str, float | int | str]
     corpus: dict[str, int]
     totals: dict[str, float | int | None | dict[str, dict[str, float | int | None]]]
     pairs: list[PairResult]
@@ -115,7 +119,7 @@ class BaselineReport:
         }
 
 
-def build_config(db_file: Path) -> Config:
+def build_config(db_file: Path, representation: str = REPRESENTATION) -> Config:
     parent = db_file.parent
     return Config(
         source_dir=CORPUS_DIR,
@@ -135,11 +139,14 @@ def build_config(db_file: Path) -> Config:
         similarity_threshold=SIMILARITY_THRESHOLD,
         rerank_threshold=RERANK_THRESHOLD,
         body_node_count_threshold=BODY_NODE_COUNT_THRESHOLD,
+        representation=representation,
     )
 
 
-def index_corpus(db_file: Path) -> sqlite3.Connection:
-    cfg = build_config(db_file)
+def index_corpus(
+    db_file: Path, representation: str = REPRESENTATION
+) -> sqlite3.Connection:
+    cfg = build_config(db_file, representation=representation)
     conn = create_db(cfg)
     run_index(conn, cfg, lambda _message: None)
     return conn
@@ -149,8 +156,21 @@ def _slug(model: str) -> str:
     return model.replace("/", "-").replace(":", "-")
 
 
-def cassette_path(model: str = MODEL) -> Path:
-    return EMBEDDINGS_DIR / f"{_slug(model)}.json"
+def _representation_suffix(representation: str) -> str:
+    return "" if representation == "raw" else f"-{representation}"
+
+
+def cassette_path(model: str = MODEL, representation: str = "raw") -> Path:
+    return (
+        EMBEDDINGS_DIR / f"{_slug(model)}{_representation_suffix(representation)}.json"
+    )
+
+
+def snapshot_path(representation: str = REPRESENTATION) -> Path:
+    suffix = _representation_suffix(representation)
+    if not suffix:
+        return SNAPSHOT_FILE
+    return BASELINE_DIR / f"snapshot{suffix}.json"
 
 
 def save_cassette(path: Path, vectors: dict[str, list[float]]) -> None:
@@ -202,19 +222,19 @@ def load_cassette(path: Path) -> Cassette:
 
 
 def seed_embeddings(conn: sqlite3.Connection, cassette: Cassette) -> None:
-    rows = conn.execute("SELECT DISTINCT body_hash FROM code_units").fetchall()
-    body_hashes = [row[0] for row in rows]
+    rows = conn.execute("SELECT DISTINCT embed_hash FROM code_units").fetchall()
+    embed_hashes = [row[0] for row in rows]
 
-    missing = [h for h in body_hashes if h not in cassette.vectors]
+    missing = [h for h in embed_hashes if h not in cassette.vectors]
     if missing:
         raise MissingEmbeddingsError(missing)
 
     with conn:
         conn.executemany(
-            "INSERT INTO embeddings (body_hash, embedding) VALUES (?, ?)",
+            "INSERT INTO embeddings (embed_hash, embedding) VALUES (?, ?)",
             [
                 (h, cassette.vectors[h].astype(np.float32).tobytes())
-                for h in body_hashes
+                for h in embed_hashes
             ],
         )
 
@@ -347,15 +367,24 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
 
-def run_baseline(cassette_file: Path | None = None) -> BaselineReport:
-    cassette = load_cassette(cassette_file or cassette_path())
+def run_baseline(
+    cassette_file: Path | None = None, representation: str = REPRESENTATION
+) -> BaselineReport:
+    if representation not in LEVELS:
+        valid = ", ".join(repr(level) for level in LEVELS)
+        raise ValueError(
+            f"invalid representation {representation!r}; must be one of {valid}"
+        )
+    cassette = load_cassette(
+        cassette_file or cassette_path(representation=representation)
+    )
     expectations = yaml.safe_load(EXPECTATIONS_FILE.read_text(encoding="utf-8"))
     duplicate_entries = expectations.get("duplicates", [])
     distinct_entries = expectations.get("distinct", [])
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         db_file = Path(tmp_dir) / "baseline.db"
-        conn = index_corpus(db_file)
+        conn = index_corpus(db_file, representation=representation)
         try:
             seed_embeddings(conn, cassette)
 
@@ -438,6 +467,7 @@ def run_baseline(cassette_file: Path | None = None) -> BaselineReport:
                     "similarity_threshold": SIMILARITY_THRESHOLD,
                     "rerank_threshold": RERANK_THRESHOLD,
                     "body_node_count_threshold": BODY_NODE_COUNT_THRESHOLD,
+                    "representation": representation,
                 },
                 corpus={
                     "files": files_count,

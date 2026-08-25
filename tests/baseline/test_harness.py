@@ -6,24 +6,31 @@ import pytest
 
 from tests.baseline.harness import (
     DIMENSIONS,
+    REPRESENTATION,
+    SNAPSHOT_FILE,
     Cassette,
     CassetteError,
     LabelError,
     MissingEmbeddingsError,
     PairResult,
+    build_config,
+    cassette_path,
     cluster_membership,
     group_by_language,
     load_cassette,
     max_recall_at_zero_fp,
     pair_language,
     resolve_labels,
+    run_baseline,
     save_cassette,
     seed_embeddings,
     separation_margin,
+    snapshot_path,
     unit_language,
     zero_fp_threshold_floor,
 )
 from slopo.analysis.models import Cluster, UnitRecord
+from slopo.indexing.normalize import LEVELS
 from slopo.schema import create_schema
 
 
@@ -168,8 +175,10 @@ def test_seed_embeddings_raises_when_body_hash_missing_from_cassette(conn):
     conn.execute("INSERT INTO files (id, path, mtime) VALUES (1, 'a.py', 0.0)")
     conn.execute(
         "INSERT INTO code_units"
-        " (id, file_id, name, body, start_line, end_line, body_node_count, body_hash)"
-        " VALUES (1, 1, 'foo', 'def foo(): pass', 1, 1, 20, 'missing-hash')"
+        " (id, file_id, name, body, start_line, end_line, body_node_count, body_hash,"
+        "  embed_body, embed_hash)"
+        " VALUES (1, 1, 'foo', 'def foo(): pass', 1, 1, 20, 'raw-hash',"
+        "         'def foo(): pass', 'missing-hash')"
     )
     conn.commit()
 
@@ -333,3 +342,63 @@ def test_group_by_language_keys_are_sorted():
     result = group_by_language(pairs)
     assert list(result.keys()) == sorted(result.keys())
     assert list(result.keys()) == ["cross", "python", "typescript"]
+
+
+# --- build_config representation ---
+
+
+def test_build_config_defaults_to_representation_constant(tmp_path):
+    cfg = build_config(tmp_path / "db.sqlite")
+    assert cfg.representation == REPRESENTATION
+
+
+def test_build_config_honors_explicit_representation(tmp_path):
+    cfg = build_config(tmp_path / "db.sqlite", representation="rename_all")
+    assert cfg.representation == "rename_all"
+
+
+def test_run_baseline_rejects_invalid_representation():
+    with pytest.raises(ValueError, match="rename_locals"):
+        run_baseline(representation="bogus")
+
+
+# --- cassette_path ---
+
+
+def test_cassette_path_raw_is_unsuffixed():
+    path = cassette_path(model="m", representation="raw")
+    assert path.name == "m.json"
+
+
+def test_cassette_path_other_levels_are_distinct_from_raw_and_each_other():
+    paths = {level: cassette_path(model="m", representation=level) for level in LEVELS}
+    assert len(set(paths.values())) == len(LEVELS)
+    assert paths["raw"].name == "m.json"
+    for level in LEVELS:
+        if level != "raw":
+            assert paths[level].name != paths["raw"].name
+
+
+# --- snapshot_path ---
+
+
+def test_snapshot_path_raw_is_snapshot_file():
+    assert snapshot_path("raw") == SNAPSHOT_FILE
+
+
+def test_snapshot_path_other_levels_are_distinct_from_raw_and_each_other():
+    paths = {level: snapshot_path(level) for level in LEVELS}
+    assert len(set(paths.values())) == len(LEVELS)
+    assert paths["raw"] == SNAPSHOT_FILE
+    for level in LEVELS:
+        if level != "raw":
+            assert paths[level] != SNAPSHOT_FILE
+
+
+def test_snapshot_and_cassette_suffixes_agree():
+    for level in LEVELS:
+        cassette_suffix = cassette_path(model="m", representation=level).stem[
+            len("m") :
+        ]
+        snapshot_suffix = snapshot_path(level).stem[len("snapshot") :]
+        assert cassette_suffix == snapshot_suffix
