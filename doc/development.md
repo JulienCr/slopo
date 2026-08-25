@@ -120,6 +120,10 @@ Slopo can embed a normalized form of the code instead of its raw text, set with 
 [representation-experiment.md](representation-experiment.md); the short version is that `raw`
 remains the default.
 
+The default thresholds come from upstream's benchmark on a different model and miss three
+quarters of this corpus's duplicates with either local model. Measured per-model settings are
+in [threshold-calibration.md](threshold-calibration.md).
+
 ### Re-recording
 
 ```bash
