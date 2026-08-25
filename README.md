@@ -10,6 +10,8 @@ For high-level description of the problem and example LLM prompts, see [slopo.de
 
 For details, see [Embedding models benchmark for code duplication detection](https://rkochanowski.com/article/embedding-benchmark/). The author is also the developer of this tool, so both parts are compatible. The sample configuration in this documentation is the one that gives the best results based on this research.
 
+For working on this fork (local setup, running the embedding model with Ollama, the quality baseline), see [doc/development.md](doc/development.md).
+
 ### Supported languages
 
 Python, TypeScript, JavaScript, Java, Kotlin, C#, Go, Rust, PHP, Elixir
