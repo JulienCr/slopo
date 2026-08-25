@@ -55,6 +55,7 @@ class Config:
     rerank_threshold: float
     body_node_count_threshold: int
     representation: str
+    embedding_input_prefix: str | None
 
 
 def load_config(path: Path) -> Config:
@@ -92,6 +93,7 @@ _KNOWN_CONFIG_KEYS = {
     "rerank_threshold",
     "body_node_count_threshold",
     "representation",
+    "embedding_input_prefix",
 }
 
 
@@ -136,6 +138,7 @@ def parse_config(raw: Any, source: str) -> Config:
             raw, "body_node_count_threshold", source, default=10
         ),
         representation=_optional_representation(raw, "representation", source),
+        embedding_input_prefix=_optional_str(raw, "embedding_input_prefix", source),
     )
 
 

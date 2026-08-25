@@ -10,10 +10,11 @@ def embed_units(batch: list[UnembeddedUnit], config: Config) -> list[EmbeddedUni
     import litellm  # type: ignore[import-untyped]
 
     litellm.suppress_debug_info = True
+    prefix = config.embedding_input_prefix or ""
     try:
         response = litellm.embedding(  # type: ignore[call-overload]
             model=config.embedding_model,
-            input=[u.embed_body for u in batch],
+            input=[prefix + u.embed_body for u in batch],
             dimensions=config.embedding_dimensions,
             api_key=config.embedding_api_key,
             **config.embedding_params,

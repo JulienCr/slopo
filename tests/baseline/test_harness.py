@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from typing import Iterator
 
@@ -5,7 +6,9 @@ import numpy as np
 import pytest
 
 from tests.baseline.harness import (
+    DEFAULT_MODEL,
     DIMENSIONS,
+    MODELS,
     REPRESENTATION,
     SNAPSHOT_FILE,
     Cassette,
@@ -168,6 +171,62 @@ def test_cassette_missing_file_rejected(tmp_path):
         load_cassette(tmp_path / "absent.json")
 
 
+def test_cassette_round_trip_preserves_input_prefix_when_absent(tmp_path):
+    path = tmp_path / "cassette.json"
+    save_cassette(path, {"h1": [0.0] * DIMENSIONS}, model_key=DEFAULT_MODEL)
+
+    cassette = load_cassette(path, model_key=DEFAULT_MODEL)
+
+    assert cassette.input_prefix == MODELS[DEFAULT_MODEL].input_prefix
+    assert cassette.input_prefix is None
+
+
+def test_cassette_round_trip_preserves_input_prefix_when_present(tmp_path):
+    prefixed_key = next(
+        key for key, profile in MODELS.items() if profile.input_prefix is not None
+    )
+    path = tmp_path / "cassette.json"
+    save_cassette(
+        path, {"h1": [0.0] * MODELS[prefixed_key].dimensions}, model_key=prefixed_key
+    )
+
+    cassette = load_cassette(path, model_key=prefixed_key)
+
+    assert cassette.input_prefix == MODELS[prefixed_key].input_prefix
+
+
+def test_cassette_input_prefix_mismatch_rejected_naming_both(tmp_path):
+    prefixed_key = next(
+        key for key, profile in MODELS.items() if profile.input_prefix is not None
+    )
+    path = tmp_path / "cassette.json"
+    save_cassette(
+        path, {"h1": [0.0] * MODELS[prefixed_key].dimensions}, model_key=prefixed_key
+    )
+
+    raw = path.read_text(encoding="utf-8")
+    stored_prefix = MODELS[prefixed_key].input_prefix
+    assert stored_prefix is not None
+    raw = raw.replace(json.dumps(stored_prefix), json.dumps("a different prefix"))
+    path.write_text(raw, encoding="utf-8")
+
+    with pytest.raises(CassetteError, match="a different prefix") as excinfo:
+        load_cassette(path, model_key=prefixed_key)
+    assert repr(stored_prefix) in str(excinfo.value)
+
+
+def test_cassette_missing_input_prefix_field_rejected(tmp_path):
+    path = tmp_path / "cassette.json"
+    save_cassette(path, {"h1": [0.0] * DIMENSIONS}, model_key=DEFAULT_MODEL)
+
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    del raw["input_prefix"]
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(CassetteError, match="re-record"):
+        load_cassette(path, model_key=DEFAULT_MODEL)
+
+
 # --- seed_embeddings ---
 
 
@@ -185,6 +244,7 @@ def test_seed_embeddings_raises_when_body_hash_missing_from_cassette(conn):
     cassette = Cassette(
         model="m",
         dimensions=DIMENSIONS,
+        input_prefix=None,
         thresholds={},
         vectors={"other-hash": np.zeros(3)},
     )
@@ -362,43 +422,68 @@ def test_run_baseline_rejects_invalid_representation():
         run_baseline(representation="bogus")
 
 
-# --- cassette_path ---
+# --- build_config model profile ---
 
 
-def test_cassette_path_raw_is_unsuffixed():
-    path = cassette_path(model="m", representation="raw")
-    assert path.name == "m.json"
+def test_build_config_defaults_to_default_model_profile(tmp_path):
+    cfg = build_config(tmp_path / "db.sqlite")
+    profile = MODELS[DEFAULT_MODEL]
+    assert cfg.embedding_model == profile.model
+    assert cfg.embedding_dimensions == profile.dimensions
+    assert cfg.embedding_input_prefix == profile.input_prefix
 
 
-def test_cassette_path_other_levels_are_distinct_from_raw_and_each_other():
-    paths = {level: cassette_path(model="m", representation=level) for level in LEVELS}
-    assert len(set(paths.values())) == len(LEVELS)
-    assert paths["raw"].name == "m.json"
-    for level in LEVELS:
-        if level != "raw":
-            assert paths[level].name != paths["raw"].name
+def test_build_config_honors_explicit_model_key(tmp_path):
+    other_key = next(key for key in MODELS if key != DEFAULT_MODEL)
+    profile = MODELS[other_key]
+    cfg = build_config(tmp_path / "db.sqlite", model_key=other_key)
+    assert cfg.embedding_model == profile.model
+    assert cfg.embedding_dimensions == profile.dimensions
+    assert cfg.embedding_input_prefix == profile.input_prefix
 
 
-# --- snapshot_path ---
+def test_build_config_rejects_unknown_model_key(tmp_path):
+    with pytest.raises(ValueError, match="jina-v2-base-code"):
+        build_config(tmp_path / "db.sqlite", model_key="bogus-model")
 
 
-def test_snapshot_path_raw_is_snapshot_file():
-    assert snapshot_path("raw") == SNAPSHOT_FILE
+# --- cassette_path / snapshot_path: the default model+representation must
+# keep producing exactly the paths already committed on disk. Hardcoded
+# literal names on purpose: the point of the test is that they did not move.
 
 
-def test_snapshot_path_other_levels_are_distinct_from_raw_and_each_other():
-    paths = {level: snapshot_path(level) for level in LEVELS}
-    assert len(set(paths.values())) == len(LEVELS)
-    assert paths["raw"] == SNAPSHOT_FILE
-    for level in LEVELS:
-        if level != "raw":
-            assert paths[level] != SNAPSHOT_FILE
+def test_default_model_and_raw_representation_match_committed_paths():
+    cassette = cassette_path(model_key=DEFAULT_MODEL, representation="raw")
+    snapshot = snapshot_path(representation="raw", model_key=DEFAULT_MODEL)
+    assert cassette.name == "ollama-unclemusclez-jina-embeddings-v2-base-code.json"
+    assert snapshot == SNAPSHOT_FILE
+    assert snapshot.name == "snapshot.json"
 
 
-def test_snapshot_and_cassette_suffixes_agree():
-    for level in LEVELS:
-        cassette_suffix = cassette_path(model="m", representation=level).stem[
-            len("m") :
-        ]
-        snapshot_suffix = snapshot_path(level).stem[len("snapshot") :]
-        assert cassette_suffix == snapshot_suffix
+def test_cassette_path_defaults_match_explicit_default_model_and_raw():
+    assert cassette_path() == cassette_path(
+        model_key=DEFAULT_MODEL, representation="raw"
+    )
+
+
+def test_snapshot_path_defaults_match_explicit_default_model_and_representation():
+    assert snapshot_path() == snapshot_path(
+        representation=REPRESENTATION, model_key=DEFAULT_MODEL
+    )
+    assert snapshot_path() == SNAPSHOT_FILE
+
+
+def test_every_model_representation_combination_yields_distinct_paths():
+    cassette_paths = {
+        (model_key, level): cassette_path(model_key=model_key, representation=level)
+        for model_key in MODELS
+        for level in LEVELS
+    }
+    assert len(set(cassette_paths.values())) == len(cassette_paths)
+
+    snapshot_paths = {
+        (model_key, level): snapshot_path(representation=level, model_key=model_key)
+        for model_key in MODELS
+        for level in LEVELS
+    }
+    assert len(set(snapshot_paths.values())) == len(snapshot_paths)

@@ -1,6 +1,7 @@
 {
   "model": "ollama/unclemusclez/jina-embeddings-v2-base-code",
   "dimensions": 768,
+  "input_prefix": null,
   "thresholds": {
     "similarity_threshold": 0.92,
     "rerank_threshold": 0.94,
