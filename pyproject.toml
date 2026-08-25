@@ -39,7 +39,7 @@ requires = ["uv_build>=0.11.15,<0.12.0"]
 build-backend = "uv_build"
 
 [tool.ruff]
-extend-exclude = ["tests/indexing/parsing/lang/fixtures"]
+extend-exclude = ["tests/indexing/parsing/lang/fixtures", "tests/baseline/corpus"]
 
 [dependency-groups]
 dev = [
