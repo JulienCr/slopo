@@ -30,8 +30,8 @@ def test_parses_units_from_each_language(tmp_path: Path):
     (tmp_path / "Calculator.java").write_text(_JAVA)
     (tmp_path / "Increment.kt").write_text(_KOTLIN)
 
-    java_units = parse_file(tmp_path / "Calculator.java")
-    kotlin_units = parse_file(tmp_path / "Increment.kt")
+    java_units = parse_file(tmp_path / "Calculator.java", "raw")
+    kotlin_units = parse_file(tmp_path / "Increment.kt", "raw")
 
     assert [u.name for u in java_units] == ["increment"]
     assert [u.name for u in kotlin_units] == ["increment"]
@@ -55,7 +55,7 @@ def test_ignores_unsupported_file_types(tmp_path: Path):
 
 def test_excludes_units_below_body_node_count_threshold(tmp_path: Path):
     (tmp_path / "Calculator.java").write_text(_JAVA)
-    units = parse_file(tmp_path / "Calculator.java")
+    units = parse_file(tmp_path / "Calculator.java", "raw")
 
     filtered = filter_units(units, body_node_count_threshold=1000)
 
@@ -76,7 +76,7 @@ def test_excludes_units_exceeding_max_body_chars(tmp_path: Path):
         "}\n"
     )
     (tmp_path / "Big.java").write_text(source)
-    units = parse_file(tmp_path / "Big.java")
+    units = parse_file(tmp_path / "Big.java", "raw")
 
     filtered = filter_units(units, body_node_count_threshold=0)
 

@@ -1,0 +1,404 @@
+{
+  "model": "ollama/unclemusclez/jina-embeddings-v2-base-code",
+  "dimensions": 768,
+  "thresholds": {
+    "similarity_threshold": 0.92,
+    "rerank_threshold": 0.94,
+    "body_node_count_threshold": 10,
+    "representation": "rename_locals"
+  },
+  "corpus": {
+    "files": 24,
+    "units": 93,
+    "distinct_bodies": 89,
+    "exact_copies": 8
+  },
+  "totals": {
+    "clusters": 7,
+    "recall": 0.35,
+    "false_positives": 0,
+    "separation_margin": -0.2706,
+    "zero_fp_threshold_floor": 0.8382,
+    "max_recall_at_zero_fp": 0.75,
+    "by_language": {
+      "python": {
+        "duplicates": 10,
+        "distinct": 10,
+        "recall": 0.4,
+        "false_positives": 0,
+        "separation_margin": -0.1313,
+        "max_recall_at_zero_fp": 0.8
+      },
+      "typescript": {
+        "duplicates": 10,
+        "distinct": 10,
+        "recall": 0.3,
+        "false_positives": 0,
+        "separation_margin": -0.1171,
+        "max_recall_at_zero_fp": 0.9
+      }
+    }
+  },
+  "pairs": [
+    {
+      "name": "exact copy of CSV export across distant modules",
+      "kind": "duplicate",
+      "a": "reports/exports.py::export_rows_to_csv",
+      "b": "admin/exports.py::export_rows_to_csv",
+      "similarity": 1.0,
+      "rerank_score": 1.075,
+      "same_cluster": true
+    },
+    {
+      "name": "exact copy of retry-with-backoff helper across distant modules",
+      "kind": "duplicate",
+      "a": "orders/fulfillment.py::retry_with_backoff",
+      "b": "util/retry.py::retry_with_backoff",
+      "similarity": 1.0,
+      "rerank_score": 1.075,
+      "same_cluster": true
+    },
+    {
+      "name": "renamed variant of invoice total calculation",
+      "kind": "duplicate",
+      "a": "billing/invoices.py::calculate_invoice_total",
+      "b": "orders/checkout.py::compute_order_total",
+      "similarity": 0.864,
+      "rerank_score": 0.9288,
+      "same_cluster": false
+    },
+    {
+      "name": "renamed variant of pagination helper",
+      "kind": "duplicate",
+      "a": "reports/exports.py::paginate_records",
+      "b": "admin/users.py::paginate_results",
+      "similarity": 0.9285,
+      "rerank_score": 0.9981,
+      "same_cluster": true
+    },
+    {
+      "name": "discount helper with an added positive-amount guard",
+      "kind": "duplicate",
+      "a": "billing/pricing.py::apply_discount",
+      "b": "orders/checkout.py::apply_coupon_discount",
+      "similarity": 0.9435,
+      "rerank_score": 1.0143,
+      "same_cluster": true
+    },
+    {
+      "name": "invoice vs receipt numbering, same file, ~250 lines apart",
+      "kind": "duplicate",
+      "a": "billing/invoices.py::format_invoice_number",
+      "b": "billing/invoices.py::format_receipt_number",
+      "similarity": 0.9177,
+      "rerank_score": 0.9467,
+      "same_cluster": false
+    },
+    {
+      "name": "renamed variant of subscription proration across modules",
+      "kind": "duplicate",
+      "a": "billing/subscriptions.py::calculate_prorated_charge",
+      "b": "orders/upgrades.py::compute_upgrade_credit",
+      "similarity": 0.7121,
+      "rerank_score": 0.7655,
+      "same_cluster": false
+    },
+    {
+      "name": "renamed variant of vector magnitude across modules",
+      "kind": "duplicate",
+      "a": "geometry/vectors.py::compute_vector_length",
+      "b": "geometry/shapes.py::compute_segment_magnitude",
+      "similarity": 0.7069,
+      "rerank_score": 0.7069,
+      "same_cluster": false
+    },
+    {
+      "name": "daily vs weekly total aggregation, same file, same shape",
+      "kind": "duplicate",
+      "a": "reports/summary.py::aggregate_daily_totals",
+      "b": "reports/summary.py::aggregate_weekly_totals",
+      "similarity": 0.867,
+      "rerank_score": 0.867,
+      "same_cluster": false
+    },
+    {
+      "name": "postal code vs zip code check, same file, same shape",
+      "kind": "duplicate",
+      "a": "util/validation.py::is_valid_postal_code",
+      "b": "util/validation.py::is_valid_zip_code",
+      "similarity": 0.8989,
+      "rerank_score": 0.8989,
+      "same_cluster": false
+    },
+    {
+      "name": "exact copy of stack value calculation across inventory modules",
+      "kind": "duplicate",
+      "a": "ts/inventory/stock.ts::calculateStackValue",
+      "b": "ts/inventory/loadout.ts::calculateStackValue",
+      "similarity": 1.0,
+      "rerank_score": 1.0,
+      "same_cluster": true
+    },
+    {
+      "name": "exact copy of rating delta clamp across unrelated modules",
+      "kind": "duplicate",
+      "a": "ts/matchmaking/rating.ts::clampRatingDelta",
+      "b": "ts/quests/rewards.ts::clampRatingDelta",
+      "similarity": 1.0,
+      "rerank_score": 1.075,
+      "same_cluster": true
+    },
+    {
+      "name": "renamed variant of lowest-value item lookup across inventory modules",
+      "kind": "duplicate",
+      "a": "ts/inventory/stock.ts::findLowestDurabilityItem",
+      "b": "ts/inventory/loadout.ts::findWeakestArmorSlot",
+      "similarity": 0.8176,
+      "rerank_score": 0.8176,
+      "same_cluster": false
+    },
+    {
+      "name": "renamed variant of progress percentage across achievement modules",
+      "kind": "duplicate",
+      "a": "ts/achievements/tracker.ts::calculateProgressPercent",
+      "b": "ts/achievements/progress.ts::computeCompletionRatio",
+      "similarity": 0.8556,
+      "rerank_score": 0.8556,
+      "same_cluster": false
+    },
+    {
+      "name": "renamed variant of Elo delta computation across matchmaking modules",
+      "kind": "duplicate",
+      "a": "ts/matchmaking/rating.ts::computeEloDelta",
+      "b": "ts/matchmaking/queue.ts::computeRatingAdjustment",
+      "similarity": 0.5676,
+      "rerank_score": 0.5676,
+      "same_cluster": false
+    },
+    {
+      "name": "renamed variant of gold bonus computation across quest modules",
+      "kind": "duplicate",
+      "a": "ts/quests/rewards.ts::calculateBonusGold",
+      "b": "ts/quests/bonuses.ts::computeGoldBonus",
+      "similarity": 0.9792,
+      "rerank_score": 0.9792,
+      "same_cluster": true
+    },
+    {
+      "name": "equipped vs empty slot count, same file, same shape",
+      "kind": "duplicate",
+      "a": "ts/inventory/loadout.ts::countEquippedSlots",
+      "b": "ts/inventory/loadout.ts::countEmptySlots",
+      "similarity": 0.9284,
+      "rerank_score": 0.9284,
+      "same_cluster": false
+    },
+    {
+      "name": "progress percent vs mastery percent, same file, same shape",
+      "kind": "duplicate",
+      "a": "ts/achievements/tracker.ts::calculateProgressPercent",
+      "b": "ts/achievements/tracker.ts::calculateMasteryPercent",
+      "similarity": 0.8234,
+      "rerank_score": 0.8234,
+      "same_cluster": false
+    },
+    {
+      "name": "queue wait vs match wait estimate, same file, same shape",
+      "kind": "duplicate",
+      "a": "ts/matchmaking/queue.ts::estimateQueueWaitTime",
+      "b": "ts/matchmaking/queue.ts::estimateMatchWaitTime",
+      "similarity": 0.8623,
+      "rerank_score": 0.8623,
+      "same_cluster": false
+    },
+    {
+      "name": "gold bonus vs experience bonus, same file, same shape",
+      "kind": "duplicate",
+      "a": "ts/quests/rewards.ts::calculateBonusGold",
+      "b": "ts/quests/rewards.ts::calculateBonusExperience",
+      "similarity": 0.9027,
+      "rerank_score": 0.9027,
+      "same_cluster": false
+    },
+    {
+      "name": "email vs phone validation, same shape, different rules",
+      "kind": "distinct",
+      "a": "util/validation.py::validate_email",
+      "b": "util/validation.py::validate_phone",
+      "similarity": 0.5317,
+      "rerank_score": 0.5317,
+      "same_cluster": false
+    },
+    {
+      "name": "password strength vs username validity, same domain",
+      "kind": "distinct",
+      "a": "admin/users.py::is_password_strong",
+      "b": "util/validation.py::is_username_valid",
+      "similarity": 0.7341,
+      "rerank_score": 0.7892,
+      "same_cluster": false
+    },
+    {
+      "name": "tax amount vs shipping cost, same arithmetic shape",
+      "kind": "distinct",
+      "a": "billing/invoices.py::calculate_tax_amount",
+      "b": "orders/checkout.py::calculate_shipping_cost",
+      "similarity": 0.6313,
+      "rerank_score": 0.6787,
+      "same_cluster": false
+    },
+    {
+      "name": "circle area vs circle circumference, one formula term differs",
+      "kind": "distinct",
+      "a": "geometry/shapes.py::compute_circle_area",
+      "b": "geometry/shapes.py::compute_circle_circumference",
+      "similarity": 0.8382,
+      "rerank_score": 0.8382,
+      "same_cluster": false
+    },
+    {
+      "name": "CSV export vs JSON export, same naming, different logic",
+      "kind": "distinct",
+      "a": "reports/exports.py::export_rows_to_csv",
+      "b": "reports/exports.py::export_rows_to_json",
+      "similarity": 0.753,
+      "rerank_score": 0.753,
+      "same_cluster": false
+    },
+    {
+      "name": "point-in-polygon vs point-in-circle containment checks",
+      "kind": "distinct",
+      "a": "geometry/shapes.py::point_in_polygon",
+      "b": "geometry/shapes.py::point_in_circle",
+      "similarity": 0.7222,
+      "rerank_score": 0.7222,
+      "same_cluster": false
+    },
+    {
+      "name": "proration charge vs refund amount, same file, different logic",
+      "kind": "distinct",
+      "a": "billing/subscriptions.py::calculate_prorated_charge",
+      "b": "billing/subscriptions.py::calculate_refund_amount",
+      "similarity": 0.6741,
+      "rerank_score": 0.6741,
+      "same_cluster": false
+    },
+    {
+      "name": "vector length vs dot product, same file, different logic",
+      "kind": "distinct",
+      "a": "geometry/vectors.py::compute_vector_length",
+      "b": "geometry/vectors.py::compute_dot_product",
+      "similarity": 0.6116,
+      "rerank_score": 0.6116,
+      "same_cluster": false
+    },
+    {
+      "name": "daily totals vs monthly average, same file, different logic",
+      "kind": "distinct",
+      "a": "reports/summary.py::aggregate_daily_totals",
+      "b": "reports/summary.py::aggregate_monthly_average",
+      "similarity": 0.8134,
+      "rerank_score": 0.8134,
+      "same_cluster": false
+    },
+    {
+      "name": "postal code check vs credit card checksum, same file, different logic",
+      "kind": "distinct",
+      "a": "util/validation.py::is_valid_postal_code",
+      "b": "util/validation.py::is_valid_credit_card_number",
+      "similarity": 0.6215,
+      "rerank_score": 0.6215,
+      "same_cluster": false
+    },
+    {
+      "name": "lowest-durability lookup vs rarity sort, same file, different logic",
+      "kind": "distinct",
+      "a": "ts/inventory/stock.ts::findLowestDurabilityItem",
+      "b": "ts/inventory/stock.ts::sortItemsByRarity",
+      "similarity": 0.58,
+      "rerank_score": 0.58,
+      "same_cluster": false
+    },
+    {
+      "name": "slot equip mutation vs equipped-slot count, same file, different logic",
+      "kind": "distinct",
+      "a": "ts/inventory/loadout.ts::equipItemToSlot",
+      "b": "ts/inventory/loadout.ts::countEquippedSlots",
+      "similarity": 0.5798,
+      "rerank_score": 0.5798,
+      "same_cluster": false
+    },
+    {
+      "name": "achievement unlock recording vs progress percent, same file, different logic",
+      "kind": "distinct",
+      "a": "ts/achievements/tracker.ts::recordAchievementUnlock",
+      "b": "ts/achievements/tracker.ts::calculateProgressPercent",
+      "similarity": 0.2488,
+      "rerank_score": 0.2488,
+      "same_cluster": false
+    },
+    {
+      "name": "completion ratio vs streak bonus, same file, different logic",
+      "kind": "distinct",
+      "a": "ts/achievements/progress.ts::computeCompletionRatio",
+      "b": "ts/achievements/progress.ts::computeStreakBonus",
+      "similarity": 0.5819,
+      "rerank_score": 0.5819,
+      "same_cluster": false
+    },
+    {
+      "name": "Elo delta vs skill tier lookup, same file, different logic",
+      "kind": "distinct",
+      "a": "ts/matchmaking/rating.ts::computeEloDelta",
+      "b": "ts/matchmaking/rating.ts::computeSkillTier",
+      "similarity": 0.3267,
+      "rerank_score": 0.3267,
+      "same_cluster": false
+    },
+    {
+      "name": "queue wait estimate vs rating adjustment, same file, different logic",
+      "kind": "distinct",
+      "a": "ts/matchmaking/queue.ts::estimateQueueWaitTime",
+      "b": "ts/matchmaking/queue.ts::computeRatingAdjustment",
+      "similarity": 0.5207,
+      "rerank_score": 0.5207,
+      "same_cluster": false
+    },
+    {
+      "name": "gold bonus vs item drop chance, same domain, cross-file, different logic",
+      "kind": "distinct",
+      "a": "ts/quests/rewards.ts::calculateBonusGold",
+      "b": "ts/quests/bonuses.ts::computeItemDropChance",
+      "similarity": 0.6847,
+      "rerank_score": 0.6847,
+      "same_cluster": false
+    },
+    {
+      "name": "gold bonus vs drop chance, same file, different logic",
+      "kind": "distinct",
+      "a": "ts/quests/bonuses.ts::computeGoldBonus",
+      "b": "ts/quests/bonuses.ts::computeItemDropChance",
+      "similarity": 0.6828,
+      "rerank_score": 0.6828,
+      "same_cluster": false
+    },
+    {
+      "name": "stack value calc vs slot equip mutation, unrelated logic",
+      "kind": "distinct",
+      "a": "ts/inventory/stock.ts::calculateStackValue",
+      "b": "ts/inventory/loadout.ts::equipItemToSlot",
+      "similarity": 0.2684,
+      "rerank_score": 0.2684,
+      "same_cluster": false
+    },
+    {
+      "name": "rating delta clamp vs match wait estimate, unrelated logic",
+      "kind": "distinct",
+      "a": "ts/matchmaking/rating.ts::clampRatingDelta",
+      "b": "ts/matchmaking/queue.ts::estimateMatchWaitTime",
+      "similarity": 0.4869,
+      "rerank_score": 0.4869,
+      "same_cluster": false
+    }
+  ]
+}

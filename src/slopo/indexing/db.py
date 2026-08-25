@@ -41,7 +41,7 @@ def delete_file_units(conn: sqlite3.Connection, file_id: int) -> None:
 def prune_orphan_embeddings(conn: sqlite3.Connection) -> None:
     conn.execute(
         "DELETE FROM embeddings"
-        " WHERE body_hash NOT IN (SELECT body_hash FROM code_units)"
+        " WHERE embed_hash NOT IN (SELECT embed_hash FROM code_units)"
     )
 
 
@@ -50,8 +50,9 @@ def insert_file_units(
 ) -> None:
     conn.executemany(
         "INSERT INTO code_units"
-        " (file_id, name, body, start_line, end_line, body_node_count, body_hash)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        " (file_id, name, body, start_line, end_line, body_node_count, body_hash,"
+        "  embed_body, embed_hash)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
             (
                 file_id,
@@ -61,6 +62,8 @@ def insert_file_units(
                 u.end_line,
                 u.body_node_count,
                 u.body_hash,
+                u.embed_body,
+                u.embed_hash,
             )
             for u in units
         ],

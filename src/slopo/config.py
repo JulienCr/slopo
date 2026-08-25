@@ -6,6 +6,8 @@ from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
+from slopo.indexing.normalize import LEVELS
+
 
 _CONFIG_TEMPLATE = """\
 # Source directory with code to index.
@@ -52,6 +54,7 @@ class Config:
     similarity_threshold: float
     rerank_threshold: float
     body_node_count_threshold: int
+    representation: str
 
 
 def load_config(path: Path) -> Config:
@@ -88,6 +91,7 @@ _KNOWN_CONFIG_KEYS = {
     "similarity_threshold",
     "rerank_threshold",
     "body_node_count_threshold",
+    "representation",
 }
 
 
@@ -131,6 +135,7 @@ def parse_config(raw: Any, source: str) -> Config:
         body_node_count_threshold=_optional_positive_int(
             raw, "body_node_count_threshold", source, default=10
         ),
+        representation=_optional_representation(raw, "representation", source),
     )
 
 
@@ -224,6 +229,16 @@ def _optional_params_map(
             )
         params[name] = item
     return params
+
+
+def _optional_representation(raw: dict[str, Any], key: str, source: str) -> str:
+    value = _optional_str(raw, key, source)
+    if value is None:
+        return "raw"
+    if value not in LEVELS:
+        valid = ", ".join(repr(level) for level in LEVELS)
+        raise ConfigError(f"{source}: '{key}' must be one of {valid}, got {value!r}")
+    return value
 
 
 def _require_path(raw: dict[str, Any], key: str, source: str) -> Path:

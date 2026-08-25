@@ -115,6 +115,11 @@ model for the best results; this local model's similarity scale is measurably lo
 retune is a detection-quality question, deliberately left out of this document. The reason to record
 the numbers is that any later change now has something to beat.
 
+Slopo can embed a normalized form of the code instead of its raw text, set with the
+`representation` option. What each option measured against this baseline is recorded in
+[representation-experiment.md](representation-experiment.md); the short version is that `raw`
+remains the default.
+
 ### Re-recording
 
 ```bash

@@ -46,3 +46,11 @@ def compute_polygon_area(vertices):
         x2, y2 = vertices[(i + 1) % n]
         area += x1 * y2 - x2 * y1
     return abs(area) / 2
+
+
+def compute_segment_magnitude(offsets):
+    accumulator = 0
+    for delta in offsets:
+        accumulator += delta * delta
+    magnitude = accumulator**0.5
+    return round(magnitude, 4)

@@ -10,27 +10,27 @@ FIXTURES = Path(__file__).parent / "fixtures" / "go"
 
 @pytest.fixture
 def example() -> list[CodeUnit]:
-    return parse((FIXTURES / "Example.go").read_bytes())
+    return parse((FIXTURES / "Example.go").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested_in_body() -> list[CodeUnit]:
-    return parse((FIXTURES / "NestedInBody.go").read_bytes())
+    return parse((FIXTURES / "NestedInBody.go").read_bytes(), "raw")
 
 
 @pytest.fixture
 def body_sizes() -> list[CodeUnit]:
-    return parse((FIXTURES / "BodySizes.go").read_bytes())
+    return parse((FIXTURES / "BodySizes.go").read_bytes(), "raw")
 
 
 @pytest.fixture
 def comments() -> list[CodeUnit]:
-    return parse((FIXTURES / "Comments.go").read_bytes())
+    return parse((FIXTURES / "Comments.go").read_bytes(), "raw")
 
 
 @pytest.fixture
 def closures() -> list[CodeUnit]:
-    return parse((FIXTURES / "Closures.go").read_bytes())
+    return parse((FIXTURES / "Closures.go").read_bytes(), "raw")
 
 
 def test_extracts_methods_and_top_level_functions(example):
@@ -107,6 +107,12 @@ def test_strips_line_and_block_comments_from_body(comments):
         "\treturn sum\n"
         "}"
     )
+
+
+def test_raw_embed_body_is_exactly_body_when_source_has_comments(comments):
+    unit = comments[0]
+    assert unit.embed_body == unit.body
+    assert unit.embed_hash == unit.body_hash
 
 
 def test_closure_bound_to_variable_takes_binding_name(closures):

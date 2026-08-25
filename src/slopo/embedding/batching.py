@@ -7,7 +7,7 @@ def trim_to_char_limit(
     result: list[UnembeddedUnit] = []
     chars = 0
     for unit in units:
-        unit_chars = len(unit.body)
+        unit_chars = len(unit.embed_body)
         if unit_chars > max_chars:
             raise ValueError(
                 f"Unit body ({unit_chars} chars) exceeds max_chars ({max_chars})"

@@ -24,10 +24,10 @@ def scan_directory(root: Path, exclude: list[str]) -> Iterator[str]:
                 yield relative.as_posix()
 
 
-def parse_file(path: Path) -> list[CodeUnit]:
+def parse_file(path: Path, representation: str) -> list[CodeUnit]:
     parser = get_parser(path)
     try:
-        return parser(path.read_bytes())
+        return parser(path.read_bytes(), representation)
     except Exception as e:
         logger.warning("Skipping %s: %s", path, e)
         return []

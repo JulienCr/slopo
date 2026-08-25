@@ -10,32 +10,32 @@ FIXTURES = Path(__file__).parent / "fixtures" / "rust"
 
 @pytest.fixture
 def example() -> list[CodeUnit]:
-    return parse((FIXTURES / "Example.rs").read_bytes())
+    return parse((FIXTURES / "Example.rs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested() -> list[CodeUnit]:
-    return parse((FIXTURES / "Nested.rs").read_bytes())
+    return parse((FIXTURES / "Nested.rs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested_in_body() -> list[CodeUnit]:
-    return parse((FIXTURES / "NestedInBody.rs").read_bytes())
+    return parse((FIXTURES / "NestedInBody.rs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def body_sizes() -> list[CodeUnit]:
-    return parse((FIXTURES / "BodySizes.rs").read_bytes())
+    return parse((FIXTURES / "BodySizes.rs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def comments() -> list[CodeUnit]:
-    return parse((FIXTURES / "Comments.rs").read_bytes())
+    return parse((FIXTURES / "Comments.rs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def closures() -> list[CodeUnit]:
-    return parse((FIXTURES / "Closures.rs").read_bytes())
+    return parse((FIXTURES / "Closures.rs").read_bytes(), "raw")
 
 
 def test_extracts_methods_and_free_functions(example):
@@ -117,6 +117,12 @@ def test_strips_line_block_and_doc_comments_from_body(comments):
         "    sum\n"
         "}"
     )
+
+
+def test_raw_embed_body_is_exactly_body_when_source_has_comments(comments):
+    with_comments = next(u for u in comments if u.name == "with_comments")
+    assert with_comments.embed_body == with_comments.body
+    assert with_comments.embed_hash == with_comments.body_hash
 
 
 def test_closure_bound_to_variable_takes_binding_name(closures):

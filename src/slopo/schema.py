@@ -1,6 +1,6 @@
 import sqlite3
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 # Bump SCHEMA_VERSION whenever schema changes
@@ -15,7 +15,8 @@ def create_schema(conn: sqlite3.Connection) -> None:
             source_dir                 TEXT NOT NULL,
             embedding_model            TEXT NOT NULL,
             embedding_dimensions       INTEGER NOT NULL,
-            body_node_count_threshold  INTEGER NOT NULL
+            body_node_count_threshold  INTEGER NOT NULL,
+            representation             TEXT NOT NULL
         );
 
         CREATE TABLE files (
@@ -24,6 +25,9 @@ def create_schema(conn: sqlite3.Connection) -> None:
             mtime REAL NOT NULL
         );
 
+        -- body_hash keys exact-copy detection on the real source; embed_hash keys
+        -- the embedding cache on the text sent to the model. One column for both
+        -- would make functions that merely normalize alike look like exact copies.
         CREATE TABLE code_units (
             id               INTEGER PRIMARY KEY,
             file_id          INTEGER NOT NULL REFERENCES files(id),
@@ -32,12 +36,14 @@ def create_schema(conn: sqlite3.Connection) -> None:
             start_line       INTEGER NOT NULL,
             end_line         INTEGER NOT NULL,
             body_node_count  INTEGER NOT NULL,
-            body_hash        TEXT NOT NULL
+            body_hash        TEXT NOT NULL,
+            embed_body       TEXT NOT NULL,
+            embed_hash       TEXT NOT NULL
         );
 
         CREATE TABLE embeddings (
-            body_hash  TEXT PRIMARY KEY,
-            embedding  BLOB NOT NULL
+            embed_hash  TEXT PRIMARY KEY,
+            embedding   BLOB NOT NULL
         );
     """)
     conn.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))

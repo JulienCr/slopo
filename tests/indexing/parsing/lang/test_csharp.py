@@ -10,32 +10,32 @@ FIXTURES = Path(__file__).parent / "fixtures" / "csharp"
 
 @pytest.fixture
 def example() -> list[CodeUnit]:
-    return parse((FIXTURES / "Example.cs").read_bytes())
+    return parse((FIXTURES / "Example.cs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested() -> list[CodeUnit]:
-    return parse((FIXTURES / "Nested.cs").read_bytes())
+    return parse((FIXTURES / "Nested.cs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def nested_in_body() -> list[CodeUnit]:
-    return parse((FIXTURES / "NestedInBody.cs").read_bytes())
+    return parse((FIXTURES / "NestedInBody.cs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def body_sizes() -> list[CodeUnit]:
-    return parse((FIXTURES / "BodySizes.cs").read_bytes())
+    return parse((FIXTURES / "BodySizes.cs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def comments() -> list[CodeUnit]:
-    return parse((FIXTURES / "Comments.cs").read_bytes())
+    return parse((FIXTURES / "Comments.cs").read_bytes(), "raw")
 
 
 @pytest.fixture
 def lambdas() -> list[CodeUnit]:
-    return parse((FIXTURES / "Lambdas.cs").read_bytes())
+    return parse((FIXTURES / "Lambdas.cs").read_bytes(), "raw")
 
 
 def test_extracts_constructor_and_methods(example):
@@ -116,6 +116,12 @@ def test_strips_line_block_and_doc_comments_from_body(comments):
         '        return endpoint + "/" + path;\n'
         "    }"
     )
+
+
+def test_raw_embed_body_is_exactly_body_when_source_has_comments(comments):
+    unit = comments[0]
+    assert unit.embed_body == unit.body
+    assert unit.embed_hash == unit.body_hash
 
 
 def test_lambda_bound_to_variable_takes_binding_name(lambdas):

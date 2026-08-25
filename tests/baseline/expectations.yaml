@@ -30,6 +30,78 @@ duplicates:
     a: billing/invoices.py::format_invoice_number
     b: billing/invoices.py::format_receipt_number
 
+  # Python: renamed/near additions for measurement room.
+  - name: renamed variant of subscription proration across modules
+    kind: renamed
+    a: billing/subscriptions.py::calculate_prorated_charge
+    b: orders/upgrades.py::compute_upgrade_credit
+
+  - name: renamed variant of vector magnitude across modules
+    kind: renamed
+    a: geometry/vectors.py::compute_vector_length
+    b: geometry/shapes.py::compute_segment_magnitude
+
+  - name: daily vs weekly total aggregation, same file, same shape
+    kind: near
+    a: reports/summary.py::aggregate_daily_totals
+    b: reports/summary.py::aggregate_weekly_totals
+
+  - name: postal code vs zip code check, same file, same shape
+    kind: near
+    a: util/validation.py::is_valid_postal_code
+    b: util/validation.py::is_valid_zip_code
+
+  # TypeScript: new domain slice (game inventory / progression / matchmaking).
+  - name: exact copy of stack value calculation across inventory modules
+    kind: exact
+    a: ts/inventory/stock.ts::calculateStackValue
+    b: ts/inventory/loadout.ts::calculateStackValue
+
+  - name: exact copy of rating delta clamp across unrelated modules
+    kind: exact
+    a: ts/matchmaking/rating.ts::clampRatingDelta
+    b: ts/quests/rewards.ts::clampRatingDelta
+
+  - name: renamed variant of lowest-value item lookup across inventory modules
+    kind: renamed
+    a: ts/inventory/stock.ts::findLowestDurabilityItem
+    b: ts/inventory/loadout.ts::findWeakestArmorSlot
+
+  - name: renamed variant of progress percentage across achievement modules
+    kind: renamed
+    a: ts/achievements/tracker.ts::calculateProgressPercent
+    b: ts/achievements/progress.ts::computeCompletionRatio
+
+  - name: renamed variant of Elo delta computation across matchmaking modules
+    kind: renamed
+    a: ts/matchmaking/rating.ts::computeEloDelta
+    b: ts/matchmaking/queue.ts::computeRatingAdjustment
+
+  - name: renamed variant of gold bonus computation across quest modules
+    kind: renamed
+    a: ts/quests/rewards.ts::calculateBonusGold
+    b: ts/quests/bonuses.ts::computeGoldBonus
+
+  - name: equipped vs empty slot count, same file, same shape
+    kind: near
+    a: ts/inventory/loadout.ts::countEquippedSlots
+    b: ts/inventory/loadout.ts::countEmptySlots
+
+  - name: progress percent vs mastery percent, same file, same shape
+    kind: near
+    a: ts/achievements/tracker.ts::calculateProgressPercent
+    b: ts/achievements/tracker.ts::calculateMasteryPercent
+
+  - name: queue wait vs match wait estimate, same file, same shape
+    kind: near
+    a: ts/matchmaking/queue.ts::estimateQueueWaitTime
+    b: ts/matchmaking/queue.ts::estimateMatchWaitTime
+
+  - name: gold bonus vs experience bonus, same file, same shape
+    kind: near
+    a: ts/quests/rewards.ts::calculateBonusGold
+    b: ts/quests/rewards.ts::calculateBonusExperience
+
 # Pairs that MUST NOT end up in the same cluster.
 distinct:
   - name: email vs phone validation, same shape, different rules
@@ -55,3 +127,61 @@ distinct:
   - name: point-in-polygon vs point-in-circle containment checks
     a: geometry/shapes.py::point_in_polygon
     b: geometry/shapes.py::point_in_circle
+
+  # Python: additional distinct pairs, same domain, different logic.
+  - name: proration charge vs refund amount, same file, different logic
+    a: billing/subscriptions.py::calculate_prorated_charge
+    b: billing/subscriptions.py::calculate_refund_amount
+
+  - name: vector length vs dot product, same file, different logic
+    a: geometry/vectors.py::compute_vector_length
+    b: geometry/vectors.py::compute_dot_product
+
+  - name: daily totals vs monthly average, same file, different logic
+    a: reports/summary.py::aggregate_daily_totals
+    b: reports/summary.py::aggregate_monthly_average
+
+  - name: postal code check vs credit card checksum, same file, different logic
+    a: util/validation.py::is_valid_postal_code
+    b: util/validation.py::is_valid_credit_card_number
+
+  # TypeScript: distinct pairs within the new game-domain slice.
+  - name: lowest-durability lookup vs rarity sort, same file, different logic
+    a: ts/inventory/stock.ts::findLowestDurabilityItem
+    b: ts/inventory/stock.ts::sortItemsByRarity
+
+  - name: slot equip mutation vs equipped-slot count, same file, different logic
+    a: ts/inventory/loadout.ts::equipItemToSlot
+    b: ts/inventory/loadout.ts::countEquippedSlots
+
+  - name: achievement unlock recording vs progress percent, same file, different logic
+    a: ts/achievements/tracker.ts::recordAchievementUnlock
+    b: ts/achievements/tracker.ts::calculateProgressPercent
+
+  - name: completion ratio vs streak bonus, same file, different logic
+    a: ts/achievements/progress.ts::computeCompletionRatio
+    b: ts/achievements/progress.ts::computeStreakBonus
+
+  - name: Elo delta vs skill tier lookup, same file, different logic
+    a: ts/matchmaking/rating.ts::computeEloDelta
+    b: ts/matchmaking/rating.ts::computeSkillTier
+
+  - name: queue wait estimate vs rating adjustment, same file, different logic
+    a: ts/matchmaking/queue.ts::estimateQueueWaitTime
+    b: ts/matchmaking/queue.ts::computeRatingAdjustment
+
+  - name: gold bonus vs item drop chance, same domain, cross-file, different logic
+    a: ts/quests/rewards.ts::calculateBonusGold
+    b: ts/quests/bonuses.ts::computeItemDropChance
+
+  - name: gold bonus vs drop chance, same file, different logic
+    a: ts/quests/bonuses.ts::computeGoldBonus
+    b: ts/quests/bonuses.ts::computeItemDropChance
+
+  - name: stack value calc vs slot equip mutation, unrelated logic
+    a: ts/inventory/stock.ts::calculateStackValue
+    b: ts/inventory/loadout.ts::equipItemToSlot
+
+  - name: rating delta clamp vs match wait estimate, unrelated logic
+    a: ts/matchmaking/rating.ts::clampRatingDelta
+    b: ts/matchmaking/queue.ts::estimateMatchWaitTime

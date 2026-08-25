@@ -40,13 +40,15 @@ def create_db(cfg: Config) -> sqlite3.Connection:
     create_schema(conn)
     conn.execute(
         "INSERT INTO metadata"
-        " (id, source_dir, embedding_model, embedding_dimensions, body_node_count_threshold)"
-        " VALUES (1, ?, ?, ?, ?)",
+        " (id, source_dir, embedding_model, embedding_dimensions,"
+        "  body_node_count_threshold, representation)"
+        " VALUES (1, ?, ?, ?, ?, ?)",
         (
             str(cfg.source_dir.resolve()),
             cfg.embedding_model,
             cfg.embedding_dimensions,
             cfg.body_node_count_threshold,
+            cfg.representation,
         ),
     )
     conn.commit()
@@ -81,7 +83,8 @@ def _check_schema_version(conn: sqlite3.Connection) -> None:
 
 def _check_metadata(conn: sqlite3.Connection, cfg: Config) -> None:
     stored = conn.execute(
-        "SELECT embedding_model, embedding_dimensions, body_node_count_threshold"
+        "SELECT embedding_model, embedding_dimensions, body_node_count_threshold,"
+        "       representation"
         " FROM metadata WHERE id = 1"
     ).fetchone()
 
@@ -101,4 +104,8 @@ def _check_metadata(conn: sqlite3.Connection, cfg: Config) -> None:
             "body_node_count_threshold",
             str(stored[2]),
             str(cfg.body_node_count_threshold),
+        )
+    if stored[3] != cfg.representation:
+        raise ConfigurationMismatchError(
+            "representation", stored[3], cfg.representation
         )
