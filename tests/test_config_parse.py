@@ -42,6 +42,7 @@ def test_returns_config_with_defaults_when_only_required_fields_present():
     assert cfg.rerank_threshold == 0.94
     assert cfg.body_node_count_threshold == 10
     assert cfg.representation == "raw"
+    assert cfg.embedding_input_prefix is None
 
 
 def test_overrides_defaults_when_optional_fields_present():
@@ -317,6 +318,25 @@ def test_representation_rejects_unknown_level_naming_alternatives():
     assert "'rename_all'" in msg
     assert "'rename_all_literals'" in msg
     assert "bogus" in msg
+
+
+# --- embedding_input_prefix ---
+
+
+def test_embedding_input_prefix_defaults_to_none():
+    cfg = parse_config(_minimal_raw(), source="<test>")
+    assert cfg.embedding_input_prefix is None
+
+
+def test_embedding_input_prefix_accepts_string():
+    prefix = "Find an equivalent code snippet given the following code snippet:\n"
+    cfg = parse_config(_minimal_raw(embedding_input_prefix=prefix), source="<test>")
+    assert cfg.embedding_input_prefix == prefix
+
+
+def test_embedding_input_prefix_wrong_type_rejected():
+    with pytest.raises(ConfigError, match="'embedding_input_prefix' must be a string"):
+        parse_config(_minimal_raw(embedding_input_prefix=123), source="<test>")
 
 
 # --- mask_api_key ---

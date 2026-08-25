@@ -25,6 +25,7 @@ _CONFIG = Config(
     rerank_threshold=0.93,
     body_node_count_threshold=10,
     representation="raw",
+    embedding_input_prefix=None,
 )
 
 
@@ -81,6 +82,36 @@ def test_embedding_params_forwarded_to_litellm():
     kwargs = mock_embedding.call_args.kwargs
     assert kwargs["input_type"] == "search_document"
     assert kwargs["truncation"] is False
+
+
+def test_input_prefix_prepended_to_every_input():
+    units = [
+        UnembeddedUnit(embed_hash="h1", embed_body="def foo(): pass"),
+        UnembeddedUnit(embed_hash="h2", embed_body="def bar(): pass"),
+    ]
+    config = replace(_CONFIG, embedding_input_prefix="Find equivalent code:\n")
+    with patch(
+        "litellm.embedding",
+        return_value=_mock_response([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+    ) as mock_embedding:
+        result = embed_units(units, config)
+
+    assert mock_embedding.call_args.kwargs["input"] == [
+        "Find equivalent code:\ndef foo(): pass",
+        "Find equivalent code:\ndef bar(): pass",
+    ]
+    assert [u.embed_hash for u in result] == ["h1", "h2"]
+
+
+def test_no_input_prefix_leaves_inputs_unchanged():
+    units = [UnembeddedUnit(embed_hash="h1", embed_body="def foo(): pass")]
+    with patch(
+        "litellm.embedding",
+        return_value=_mock_response([[1.0, 2.0, 3.0]]),
+    ) as mock_embedding:
+        embed_units(units, _CONFIG)
+
+    assert mock_embedding.call_args.kwargs["input"] == ["def foo(): pass"]
 
 
 def test_vector_size_mismatch_raises():

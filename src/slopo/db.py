@@ -41,14 +41,15 @@ def create_db(cfg: Config) -> sqlite3.Connection:
     conn.execute(
         "INSERT INTO metadata"
         " (id, source_dir, embedding_model, embedding_dimensions,"
-        "  body_node_count_threshold, representation)"
-        " VALUES (1, ?, ?, ?, ?, ?)",
+        "  body_node_count_threshold, representation, embedding_input_prefix)"
+        " VALUES (1, ?, ?, ?, ?, ?, ?)",
         (
             str(cfg.source_dir.resolve()),
             cfg.embedding_model,
             cfg.embedding_dimensions,
             cfg.body_node_count_threshold,
             cfg.representation,
+            cfg.embedding_input_prefix,
         ),
     )
     conn.commit()
@@ -84,7 +85,7 @@ def _check_schema_version(conn: sqlite3.Connection) -> None:
 def _check_metadata(conn: sqlite3.Connection, cfg: Config) -> None:
     stored = conn.execute(
         "SELECT embedding_model, embedding_dimensions, body_node_count_threshold,"
-        "       representation"
+        "       representation, embedding_input_prefix"
         " FROM metadata WHERE id = 1"
     ).fetchone()
 
@@ -108,4 +109,12 @@ def _check_metadata(conn: sqlite3.Connection, cfg: Config) -> None:
     if stored[3] != cfg.representation:
         raise ConfigurationMismatchError(
             "representation", stored[3], cfg.representation
+        )
+    # The prefix is prepended before embedding but never hashed, so a mismatch
+    # here would silently reuse vectors computed under a different prefix.
+    if stored[4] != cfg.embedding_input_prefix:
+        raise ConfigurationMismatchError(
+            "embedding_input_prefix",
+            str(stored[4]),
+            str(cfg.embedding_input_prefix),
         )

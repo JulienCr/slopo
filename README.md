@@ -122,7 +122,7 @@ Most configuration is done with a configuration file with two exceptions:
 1. The location of the configuration file can be overridden with the `--config` option.
 2. The API key can be set with the `SLOPO_EMBEDDING_API_KEY` environment variable, also picked up from a `.env` file in the current directory.
 
-**Be aware that some parameters can't be changed after first indexing.** You need to remove `slopo.db` and index/embed from the beginning: `source_dir`, `embedding_model`, `embedding_dimensions`, `body_node_count_threshold`.
+**Be aware that some parameters can't be changed after first indexing.** You need to remove `slopo.db` and index/embed from the beginning: `source_dir`, `embedding_model`, `embedding_dimensions`, `body_node_count_threshold`, `representation`, `embedding_input_prefix`.
 
 ### All configurable parameters
 
@@ -142,9 +142,11 @@ embedding_params:
 ```
 - `embedding_batch_size` and `embedding_batch_chars`: Requests to the embedding API are batched for performance. Defaults are fine for most cases.
 - `embedding_request_delay`: Delay in seconds after every batched request, by default no delay. Increase if you reach rate limits.
+- `embedding_input_prefix`: Text prepended to every code unit before it is sent for embedding, without affecting caching or storage. Some models expect a task-specific instruction prefix (e.g. `jina-code-embeddings` models) and score noticeably worse without it; check your model's card.
 - `similarity_threshold`: Controls minimal cosine similarity between embeddings.
 - `rerank_threshold`: Controls minimal similarity after applying a boost reflecting distance in the codebase.
 - `body_node_count_threshold`: Number of AST nodes inside the body (excluding signature and annotations). This value reflects the minimum code complexity of the included code unit, more precise than text length. Increase if you notice unwanted, too-small code units in the report.
+- `representation`: Normalization level applied to code before embedding: `raw`, `rename_locals`, `rename_all`, or `rename_all_literals`. Higher levels canonicalize more identifier and literal differences, useful for detecting duplicates that differ only by naming.
 
 ## Details
 

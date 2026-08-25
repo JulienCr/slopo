@@ -53,6 +53,7 @@ def _config(tmp_path: Path, **overrides) -> Config:
         rerank_threshold=0.94,
         body_node_count_threshold=10,
         representation="raw",
+        embedding_input_prefix=None,
     )
     return replace(cfg, **overrides)
 
@@ -72,6 +73,27 @@ def test_database_created_with_one_representation_refuses_another(tmp_path: Path
 
 def test_database_reopens_fine_with_the_same_representation(tmp_path: Path):
     cfg = _config(tmp_path, representation="rename_all")
+    create_db(cfg).close()
+
+    conn = open_db(cfg)
+    conn.close()
+
+
+def test_database_created_with_one_prefix_refuses_another(tmp_path: Path):
+    cfg = _config(tmp_path, embedding_input_prefix="Find equivalent code:\n")
+    create_db(cfg).close()
+
+    other = _config(tmp_path, embedding_input_prefix="Find similar code:\n")
+    with pytest.raises(ConfigurationMismatchError) as exc:
+        open_db(other).close()
+
+    assert exc.value.field == "embedding_input_prefix"
+    assert exc.value.stored == "Find equivalent code:\n"
+    assert exc.value.current == "Find similar code:\n"
+
+
+def test_database_created_without_prefix_reopens_fine_without_one(tmp_path: Path):
+    cfg = _config(tmp_path, embedding_input_prefix=None)
     create_db(cfg).close()
 
     conn = open_db(cfg)
