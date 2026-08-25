@@ -10,6 +10,7 @@ import json
 import sqlite3
 import tempfile
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 from dotenv import load_dotenv
@@ -46,9 +47,23 @@ def _print_summary(report: harness.BaselineReport) -> None:
     )
     print(
         f"clusters: {totals['clusters']}  recall: {totals['recall']}  "
+        f"max_recall_at_zero_fp: {totals['max_recall_at_zero_fp']}  "
         f"false_positives: {totals['false_positives']}  "
-        f"separation_margin: {totals['separation_margin']}"
+        f"separation_margin: {totals['separation_margin']}  "
+        f"zero_fp_threshold_floor: {totals['zero_fp_threshold_floor']}"
     )
+    by_language = cast(
+        "dict[str, dict[str, float | int | None]]", totals["by_language"]
+    )
+    for language in sorted(by_language):
+        stats = by_language[language]
+        print(
+            f"  {language:<10} duplicates: {stats['duplicates']:<3} "
+            f"distinct: {stats['distinct']:<3} recall: {stats['recall']}  "
+            f"max_recall_at_zero_fp: {stats['max_recall_at_zero_fp']}  "
+            f"false_positives: {stats['false_positives']}  "
+            f"separation_margin: {stats['separation_margin']}"
+        )
     print()
     header = f"{'name':<62} {'kind':<10} {'similarity':>10} {'same_cluster':>13}"
     print(header)

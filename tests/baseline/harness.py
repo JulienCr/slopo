@@ -90,7 +90,7 @@ class BaselineReport:
     dimensions: int
     thresholds: dict[str, float | int]
     corpus: dict[str, int]
-    totals: dict[str, float | int | None]
+    totals: dict[str, float | int | None | dict[str, dict[str, float | int | None]]]
     pairs: list[PairResult]
 
     def to_dict(self) -> dict[str, Any]:
@@ -99,10 +99,7 @@ class BaselineReport:
             "dimensions": self.dimensions,
             "thresholds": self.thresholds,
             "corpus": self.corpus,
-            "totals": {
-                key: (round(value, 4) if isinstance(value, float) else value)
-                for key, value in self.totals.items()
-            },
+            "totals": {key: _round_floats(value) for key, value in self.totals.items()},
             "pairs": [
                 {
                     "name": p.name,
@@ -130,9 +127,11 @@ def build_config(db_file: Path) -> Config:
         embedding_dimensions=DIMENSIONS,
         embedding_api_key=None,
         embedding_params={},
-        embedding_batch_size=100,
+        # Ollama opens one connection per embedded input and disables keep-alive, so a
+        # fast run exhausts Windows sockets. Pace the recording; replay never embeds.
+        embedding_batch_size=25,
         embedding_batch_chars=100_000,
-        embedding_request_delay=0,
+        embedding_request_delay=2,
         similarity_threshold=SIMILARITY_THRESHOLD,
         rerank_threshold=RERANK_THRESHOLD,
         body_node_count_threshold=BODY_NODE_COUNT_THRESHOLD,
@@ -270,6 +269,80 @@ def separation_margin(
     return min(duplicate_sims) - max(distinct_sims)
 
 
+def zero_fp_threshold_floor(distinct_sims: list[float]) -> float | None:
+    """Highest similarity among distinct pairs; any threshold strictly above
+    it yields zero false positives on this corpus."""
+    if not distinct_sims:
+        return None
+    return max(distinct_sims)
+
+
+def max_recall_at_zero_fp(
+    duplicate_sims: list[float], distinct_sims: list[float]
+) -> float | None:
+    """Best recall reachable without a single false positive, whatever
+    threshold is chosen: the fraction of duplicate similarities strictly
+    above the zero-FP floor."""
+    floor = zero_fp_threshold_floor(distinct_sims)
+    if floor is None or not duplicate_sims:
+        return None
+    return sum(1 for s in duplicate_sims if s > floor) / len(duplicate_sims)
+
+
+_LANGUAGE_BY_SUFFIX = {".py": "python", ".ts": "typescript"}
+
+
+def unit_language(label: str) -> str:
+    path = label.split("::", 1)[0]
+    return _LANGUAGE_BY_SUFFIX.get(Path(path).suffix, "unknown")
+
+
+def pair_language(a: str, b: str) -> str:
+    lang_a = unit_language(a)
+    lang_b = unit_language(b)
+    return lang_a if lang_a == lang_b else "cross"
+
+
+def group_by_language(
+    pairs: list[PairResult],
+) -> dict[str, dict[str, float | int | None]]:
+    groups: dict[str, list[PairResult]] = {}
+    for pair in pairs:
+        groups.setdefault(pair_language(pair.a, pair.b), []).append(pair)
+
+    result: dict[str, dict[str, float | int | None]] = {}
+    for language in sorted(groups):
+        lang_pairs = groups[language]
+        duplicate_results = [p for p in lang_pairs if p.kind == "duplicate"]
+        distinct_results = [p for p in lang_pairs if p.kind == "distinct"]
+        duplicate_sims = [p.similarity for p in duplicate_results]
+        distinct_sims = [p.similarity for p in distinct_results]
+        recall = (
+            sum(1 for p in duplicate_results if p.same_cluster) / len(duplicate_results)
+            if duplicate_results
+            else 0.0
+        )
+        result[language] = {
+            "duplicates": len(duplicate_results),
+            "distinct": len(distinct_results),
+            "recall": recall,
+            "false_positives": sum(1 for p in distinct_results if p.same_cluster),
+            "separation_margin": separation_margin(duplicate_sims, distinct_sims),
+            "max_recall_at_zero_fp": max_recall_at_zero_fp(
+                duplicate_sims, distinct_sims
+            ),
+        }
+    return result
+
+
+def _round_floats(value: Any) -> Any:
+    if isinstance(value, float):
+        return round(value, 4)
+    if isinstance(value, dict):
+        return {key: _round_floats(v) for key, v in value.items()}
+    return value
+
+
 def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
@@ -345,10 +418,11 @@ def run_baseline(cassette_file: Path | None = None) -> BaselineReport:
                 else 0.0
             )
             false_positives = sum(1 for p in distinct_results if p.same_cluster)
-            margin = separation_margin(
-                [p.similarity for p in duplicate_results],
-                [p.similarity for p in distinct_results],
-            )
+            duplicate_sims = [p.similarity for p in duplicate_results]
+            distinct_sims = [p.similarity for p in distinct_results]
+            margin = separation_margin(duplicate_sims, distinct_sims)
+            zero_fp_floor = zero_fp_threshold_floor(distinct_sims)
+            best_recall = max_recall_at_zero_fp(duplicate_sims, distinct_sims)
 
             files_count = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
             units_count = conn.execute("SELECT COUNT(*) FROM code_units").fetchone()[0]
@@ -376,6 +450,9 @@ def run_baseline(cassette_file: Path | None = None) -> BaselineReport:
                     "recall": recall,
                     "false_positives": false_positives,
                     "separation_margin": margin,
+                    "zero_fp_threshold_floor": zero_fp_floor,
+                    "max_recall_at_zero_fp": best_recall,
+                    "by_language": group_by_language(pair_results),
                 },
                 pairs=pair_results,
             )
