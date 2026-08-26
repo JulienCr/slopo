@@ -2,6 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 from slopo.analysis.models import Cluster, UnitRecord
+from slopo.analysis.report.brief import build_agent_brief_markdown
 from slopo.analysis.report.markdown import (
     build_cluster_markdown,
     build_index_markdown,
@@ -11,6 +12,10 @@ from slopo.analysis.report.naming import (
     CLUSTER_FILE_RE,
     cluster_filename,
 )
+from slopo.analysis.report.recommendations import build_recommendations_markdown
+from slopo.analysis.triage import build_evidence
+
+_OWNED_FILES = ("index.md", "recommendations.md", "agent-brief.md")
 
 
 def write_report(
@@ -33,11 +38,22 @@ def write_report(
             build_cluster_markdown(i, cluster, units, duplicates), encoding="utf-8"
         )
 
+    evidence = build_evidence(clusters, units, duplicates)
+    (output_dir / "recommendations.md").write_text(
+        build_recommendations_markdown(evidence, clusters, units, duplicates),
+        encoding="utf-8",
+    )
+    (output_dir / "agent-brief.md").write_text(
+        build_agent_brief_markdown(evidence, clusters, units, duplicates),
+        encoding="utf-8",
+    )
+
 
 def _clean_report_dir(output_dir: Path) -> None:
-    index = output_dir / "index.md"
-    if index.is_file():
-        index.unlink()
+    for name in _OWNED_FILES:
+        path = output_dir / name
+        if path.is_file():
+            path.unlink()
     for path in output_dir.glob(CLUSTER_FILE_GLOB):
         if CLUSTER_FILE_RE.fullmatch(path.name):
             path.unlink()

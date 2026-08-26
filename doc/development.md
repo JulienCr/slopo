@@ -139,3 +139,10 @@ SLOPO_BASELINE_UPDATE=1 uv run pytest tests/baseline
 ```
 
 This rewrites the snapshot. The resulting `git diff` is the deliverable: it is what shows whether a change improved detection or quietly degraded it, and it should be read pair by pair, not accepted wholesale.
+
+## Triage output
+
+Alongside `index.md` and the `cluster-NN.md` files, `slopo analyze` writes two more documents into the report directory:
+
+- `recommendations.md`: the clusters ranked by a mechanical score, for a person to read. Each one worth attention gets its evidence, a drift diff when the copies have already diverged, and a draft issue; the rest are collapsed into a short list of likely indexing artifacts.
+- `agent-brief.md`: the same ranked clusters, written to be handed to a coding agent with the repository open, so the judgment the mechanical evidence cannot make gets made by something that can read the actual files.
