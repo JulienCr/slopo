@@ -56,6 +56,7 @@ class ClusterEvidence:
     # with keyword construction, so this keeps them constructible unchanged.
     drift_ratio: float | None = None
     all_adjacent_in_file: bool = False
+    nested_members: int = 0
 
 
 def build_evidence(
@@ -91,21 +92,54 @@ def _same_file_gap(a: UnitRecord, b: UnitRecord) -> int:
     return 0  # overlapping or nested
 
 
-def _adjacent_in_file(members: list[UnitRecord]) -> bool:
-    return any(
+def _is_adjacent_pair(a: UnitRecord, b: UnitRecord) -> bool:
+    return (
         a.file_path == b.file_path and _same_file_gap(a, b) <= _ADJACENT_MAX_GAP_LINES
-        for a, b in itertools.combinations(members, 2)
     )
+
+
+def _adjacent_in_file(members: list[UnitRecord]) -> bool:
+    return any(_is_adjacent_pair(a, b) for a, b in itertools.combinations(members, 2))
 
 
 def _all_adjacent_in_file(members: list[UnitRecord]) -> bool:
     # A nested function is indexed both on its own and inside its parent, so
     # one logical block can enter a cluster as several adjacent members; that
     # is noise about those members, not evidence the whole cluster is noise.
-    return all(
-        a.file_path == b.file_path and _same_file_gap(a, b) <= _ADJACENT_MAX_GAP_LINES
+    return all(_is_adjacent_pair(a, b) for a, b in itertools.combinations(members, 2))
+
+
+def _relational_pairs(
+    members: list[UnitRecord],
+) -> list[tuple[UnitRecord, UnitRecord]]:
+    # Relational evidence (drift pair, drift ratio) must come from pairs that
+    # are not each other's adjacency noise; fall back to the full set only
+    # when every pair is adjacent, i.e. exactly the all_adjacent_in_file case.
+    candidates = [
+        (a, b)
         for a, b in itertools.combinations(members, 2)
+        if not _is_adjacent_pair(a, b)
+    ]
+    return candidates if candidates else list(itertools.combinations(members, 2))
+
+
+def _contains(outer: UnitRecord, inner: UnitRecord) -> bool:
+    return (
+        outer.start_line <= inner.start_line
+        and inner.end_line <= outer.end_line
+        and (outer.start_line, outer.end_line) != (inner.start_line, inner.end_line)
     )
+
+
+def _nested_members_set(members: list[UnitRecord]) -> set[UnitRecord]:
+    # A member fully contained in a same-file sibling is that sibling's
+    # closure indexed a second time, not an independent copy; it should
+    # not stand in for the cluster when comparing names.
+    return {
+        inner
+        for inner, outer in itertools.permutations(members, 2)
+        if inner.file_path == outer.file_path and _contains(outer, inner)
+    }
 
 
 def _max_path_hops(members: list[UnitRecord]) -> int:
@@ -118,11 +152,11 @@ def _max_path_hops(members: list[UnitRecord]) -> int:
 
 
 def _closest_drifted_pair(
-    members: list[UnitRecord],
+    pairs: list[tuple[UnitRecord, UnitRecord]],
 ) -> tuple[UnitRecord, UnitRecord, float] | None:
     best: tuple[UnitRecord, UnitRecord, float] | None = None
     best_ratio = -1.0
-    for a, b in itertools.combinations(members, 2):
+    for a, b in pairs:
         if a.body_hash == b.body_hash:
             continue
         ratio = difflib.SequenceMatcher(a=a.body, b=b.body).ratio()
@@ -229,17 +263,22 @@ def _evaluate(
     members = _members(cluster, units, duplicates)
     lines = max(m.end_line - m.start_line + 1 for m in members)
     files = len({m.file_path for m in members})
-    names = tuple(sorted({m.name for m in members}))
-    same_name = len(names) <= 1
     all_exact = len({m.body_hash for m in members}) <= 1
     adjacent = _adjacent_in_file(members)
     all_adjacent = _all_adjacent_in_file(members)
     max_hops = _max_path_hops(members)
 
+    nested_set = _nested_members_set(members)
+    naming_members = (
+        members if all_adjacent else [m for m in members if m not in nested_set]
+    )
+    names = tuple(sorted({m.name for m in (naming_members or members)}))
+    same_name = len(names) <= 1
+
     drift = None
     drift_ratio = None
     if not all_exact:
-        pair = _closest_drifted_pair(members)
+        pair = _closest_drifted_pair(_relational_pairs(members))
         if pair is not None:
             a, b, drift_ratio = pair
             drift = _build_drift(a, b)
@@ -260,6 +299,7 @@ def _evaluate(
         max_path_hops=max_hops,
         adjacent_in_file=adjacent,
         all_adjacent_in_file=all_adjacent,
+        nested_members=len(nested_set),
         drift=drift,
         drift_ratio=drift_ratio,
         score_min=cluster.min_similarity,

@@ -1,3 +1,7 @@
+import difflib
+
+import pytest
+
 from slopo.analysis import triage
 from slopo.analysis.models import Cluster, UnitRecord
 from slopo.analysis.triage import ClusterEvidence, build_evidence
@@ -446,3 +450,156 @@ def test_below_drift_floor_gets_no_boost_and_withholds_likely_real():
         + triage._DISTANCE_WEIGHT * evidence.max_path_hops
     )
     assert evidence.value == round(expected_base, 2)
+
+
+# --- relational evidence ignores adjacency noise (nested closures) ---
+
+
+def test_drift_and_names_ignore_a_nested_within_file_member():
+    # A is a 30-line function; B is A's own nested closure, indexed a second
+    # time and spanning nearly all of A's body (so its raw textual overlap
+    # with A is very high, ~0.95); C is a genuine, more modest cross-file
+    # duplicate of A (~0.26 similar). Under the pre-fix code, which searched
+    # every pair for the single closest one, (A, B) would win on raw ratio
+    # even though B is A's own inner closure, not an independent copy -- the
+    # diff would compare A against itself and "names" would include B's
+    # anonymous name, exactly the launchWorker/analysis.ts bug this pins.
+    words = [
+        "alpha",
+        "beta",
+        "gamma",
+        "delta",
+        "epsilon",
+        "zeta",
+        "eta",
+        "theta",
+        "iota",
+        "kappa",
+        "lambda",
+        "mu",
+        "nu",
+        "xi",
+        "omicron",
+        "pi",
+        "rho",
+        "sigma",
+        "tau",
+        "upsilon",
+        "phi",
+        "chi",
+        "psi",
+        "omega",
+        "north",
+        "south",
+        "east",
+        "west",
+        "up",
+        "down",
+    ]
+    lines_a = [
+        f"const {words[i]}_{i} = compute({words[(i + 1) % 30]}, {i})" for i in range(30)
+    ]
+    body_a = "\n".join(lines_a)
+    body_b = "\n".join(lines_a[3:30])  # A's own nested closure, minus a wrapper
+    lines_c = list(lines_a)
+    for i in range(0, 30, 3):
+        lines_c[i] = (
+            f"const {words[i]}_{i} = computeVariant({words[(i + 2) % 30]}, {i}, extra)"
+        )
+    body_c = "\n".join(lines_c)
+
+    units = {
+        1: _unit(
+            1,
+            file_path="src/worker.ts",
+            name="worker",
+            start=1,
+            end=30,
+            body=body_a,
+            body_hash="a",
+        ),
+        2: _unit(
+            2,
+            file_path="src/worker.ts",
+            name="<unknown>",
+            start=4,
+            end=30,
+            body=body_b,
+            body_hash="b",
+        ),
+        3: _unit(
+            3,
+            file_path="other/worker.ts",
+            name="worker",
+            start=1,
+            end=30,
+            body=body_c,
+            body_hash="c",
+        ),
+    }
+    evidence = _only(build_evidence([_cluster([1, 2, 3])], units, {}))
+
+    assert evidence.nested_members == 1
+    assert evidence.all_adjacent_in_file is False
+
+    # The diff must come from the cross-file pair (unit 1, unit 3), not from
+    # unit 1 against its own nested closure (unit 2).
+    assert "src/worker.ts:1-30" in evidence.drift
+    assert "other/worker.ts:1-30" in evidence.drift
+    assert "src/worker.ts:4-30" not in evidence.drift
+
+    expected_ratio = difflib.SequenceMatcher(a=body_a, b=body_c).ratio()
+    assert evidence.drift_ratio == pytest.approx(expected_ratio)
+
+    # The nested closure's name must not poison the name comparison.
+    assert evidence.names == ("worker",)
+    assert evidence.same_name is True
+
+
+def test_all_pairs_adjacent_falls_back_to_the_full_set_for_relational_evidence():
+    # Only two members, both in one file, one nested in the other: the only
+    # available pair is adjacent, so evidence must still be computed from it
+    # rather than coming up empty.
+    body_a = "\n".join(f"line_{i}_alpha_beta" for i in range(40))
+    body_b = "\n".join(f"line_{i}_alpha_beta" for i in range(5, 35))
+    units = {
+        1: _unit(
+            1,
+            file_path="src/worker.ts",
+            name="worker",
+            start=1,
+            end=40,
+            body=body_a,
+            body_hash="a",
+        ),
+        2: _unit(
+            2,
+            file_path="src/worker.ts",
+            name="<unknown>",
+            start=6,
+            end=35,
+            body=body_b,
+            body_hash="b",
+        ),
+    }
+    evidence = _only(build_evidence([_cluster([1, 2])], units, {}))
+
+    assert evidence.all_adjacent_in_file is True
+    assert evidence.nested_members == 1
+    # Falls back to the only pair there is, rather than reporting no drift.
+    assert evidence.drift is not None
+    assert "src/worker.ts:1-40" in evidence.drift
+    assert "src/worker.ts:6-35" in evidence.drift
+    # Names fall back to the full set too: the distinction stops mattering
+    # once the whole cluster is already artifact-shaped.
+    assert evidence.names == ("<unknown>", "worker")
+    assert evidence.same_name is False
+
+
+def test_nested_members_zero_when_nothing_is_adjacent():
+    units = {
+        1: _unit(1, file_path="src/a.py", body_hash="x"),
+        2: _unit(2, file_path="src/b.py", body_hash="y"),
+    }
+    evidence = _only(build_evidence([_cluster([1, 2])], units, {}))
+    assert evidence.nested_members == 0
