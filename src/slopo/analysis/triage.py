@@ -12,8 +12,13 @@ _SIZE_WEIGHT = 0.1
 _COPY_WEIGHT = 1.5
 # Each directory hop between the farthest pair raises drift risk on its own.
 _DISTANCE_WEIGHT = 0.3
-# Drift is the strongest signal this tool exists to surface, so it doubles the base.
+# Ceiling multiplier for a drifted pair at (near) full textual similarity;
+# scaled down toward 1.0 as the pair's ratio nears the floor below.
 _DRIFT_MULTIPLIER = 2.0
+# Textual similarity of the closest drifted pair, distinct from the cosine
+# similarity that formed the cluster (two scripts can sit at 0.85 in
+# embedding space while barely half the same text); below it, no boost.
+_DRIFT_SIMILARITY_FLOOR = 0.80
 # Differing names defeat grep entirely; a flat bonus reflects a distinct risk.
 _NAME_MISMATCH_BONUS = 4.0
 # A pair adjacent or nested in one file usually reflects an indexer split.
@@ -47,6 +52,9 @@ class ClusterEvidence:
     value: float
     verdict: str
     reasons: tuple[str, ...]
+    # Defaulted and last: added after report/** fixtures were already written
+    # with keyword construction, so this keeps them constructible unchanged.
+    drift_ratio: float | None = None
 
 
 def build_evidence(
@@ -100,8 +108,8 @@ def _max_path_hops(members: list[UnitRecord]) -> int:
 
 def _closest_drifted_pair(
     members: list[UnitRecord],
-) -> tuple[UnitRecord, UnitRecord] | None:
-    best: tuple[UnitRecord, UnitRecord] | None = None
+) -> tuple[UnitRecord, UnitRecord, float] | None:
+    best: tuple[UnitRecord, UnitRecord, float] | None = None
     best_ratio = -1.0
     for a, b in itertools.combinations(members, 2):
         if a.body_hash == b.body_hash:
@@ -109,8 +117,16 @@ def _closest_drifted_pair(
         ratio = difflib.SequenceMatcher(a=a.body, b=b.body).ratio()
         if ratio > best_ratio:
             best_ratio = ratio
-            best = (a, b)
+            best = (a, b, ratio)
     return best
+
+
+def _drift_multiplier(ratio: float | None) -> float:
+    if ratio is None or ratio < _DRIFT_SIMILARITY_FLOOR:
+        return 1.0
+    span = 1.0 - _DRIFT_SIMILARITY_FLOOR
+    fraction = (ratio - _DRIFT_SIMILARITY_FLOOR) / span
+    return 1.0 + fraction * (_DRIFT_MULTIPLIER - 1.0)
 
 
 def _build_drift(a: UnitRecord, b: UnitRecord) -> str:
@@ -133,7 +149,7 @@ def _score(
     lines: int,
     member_count: int,
     max_hops: int,
-    drift: str | None,
+    drift_ratio: float | None,
     same_name: bool,
     adjacent_in_file: bool,
 ) -> tuple[float, tuple[str, ...]]:
@@ -147,9 +163,17 @@ def _score(
     )
     if max_hops > 0:
         reasons.append(f"copies span {max_hops} directory hop(s)")
-    if drift is not None:
-        value *= _DRIFT_MULTIPLIER
-        reasons.append("drift: members have diverged since duplication")
+    if drift_ratio is not None:
+        multiplier = _drift_multiplier(drift_ratio)
+        if multiplier > 1.0:
+            value *= multiplier
+            reasons.append(
+                f"drift: {drift_ratio:.0%} textually identical, still reads as the same code"
+            )
+        else:
+            reasons.append(
+                f"diverged pair only {drift_ratio:.0%} alike: related, not duplicated, no drift boost"
+            )
     if not same_name:
         value += _NAME_MISMATCH_BONUS
         reasons.append("names differ across copies, invisible to grep")
@@ -168,15 +192,16 @@ def _verdict(
     lines: int,
     files: int,
     same_name: bool,
-    drift: str | None,
+    drift_ratio: float | None,
     adjacent_in_file: bool,
 ) -> str:
     if adjacent_in_file or lines <= _TRIVIAL_BLOCK_LINES:
         return "likely-artifact"
+    drifted_enough = drift_ratio is not None and drift_ratio >= _DRIFT_SIMILARITY_FLOOR
     if (
         files >= 2
         and lines >= _SUBSTANTIAL_BLOCK_LINES
-        and (drift is not None or not same_name)
+        and (drifted_enough or not same_name)
     ):
         return "likely-real"
     return "needs-judgment"
@@ -198,13 +223,17 @@ def _evaluate(
     max_hops = _max_path_hops(members)
 
     drift = None
+    drift_ratio = None
     if not all_exact:
         pair = _closest_drifted_pair(members)
         if pair is not None:
-            drift = _build_drift(*pair)
+            a, b, drift_ratio = pair
+            drift = _build_drift(a, b)
 
-    value, reasons = _score(lines, len(members), max_hops, drift, same_name, adjacent)
-    verdict = _verdict(lines, files, same_name, drift, adjacent)
+    value, reasons = _score(
+        lines, len(members), max_hops, drift_ratio, same_name, adjacent
+    )
+    verdict = _verdict(lines, files, same_name, drift_ratio, adjacent)
 
     return ClusterEvidence(
         number=number,
@@ -217,6 +246,7 @@ def _evaluate(
         max_path_hops=max_hops,
         adjacent_in_file=adjacent,
         drift=drift,
+        drift_ratio=drift_ratio,
         score_min=cluster.min_similarity,
         score_max=cluster.max_similarity,
         value=value,

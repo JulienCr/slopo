@@ -73,6 +73,7 @@ def test_all_exact_true_and_drift_none_for_byte_identical_members():
 
     assert evidence.all_exact is True
     assert evidence.drift is None
+    assert evidence.drift_ratio is None
 
 
 # --- drift produced and labelled for differing members ---
@@ -91,6 +92,7 @@ def test_drift_produced_and_labelled_for_differing_members():
 
     assert evidence.all_exact is False
     assert evidence.drift is not None
+    assert evidence.drift_ratio is not None
     assert "--- src/a.py:5-6" in evidence.drift
     assert "+++ src/b.py:20-21" in evidence.drift
     assert "-    return 1" in evidence.drift
@@ -317,3 +319,80 @@ def test_ranking_prefers_drifted_cluster_over_larger_stable_one():
     small_drift = next(e for e in evidence if e.number == 2)
     assert big.drift is None
     assert small_drift.drift is not None
+
+
+def test_ranking_prefers_high_similarity_small_diff_over_low_similarity_big_diff():
+    # BIG: a 50-line block, two copies, same directory, but the bodies share
+    # almost no text (this is a regression case: under a multiplier that
+    # fires on drift *presence* alone, this cluster would outrank SMALL below).
+    body_big_a = "\n".join(
+        f"function_body_line_{i}_alpha_beta_gamma" for i in range(50)
+    )
+    body_big_b = "\n".join(
+        f"totally_other_code_segment_{i}_zeta_eta" for i in range(50)
+    )
+    units_big = {
+        1: _unit(
+            1, file_path="src/a.py", start=1, end=50, body=body_big_a, body_hash="a"
+        ),
+        2: _unit(
+            2, file_path="src/b.py", start=1, end=50, body=body_big_b, body_hash="b"
+        ),
+    }
+    # SMALL: a 20-line block, two copies, 4 directory hops apart, near-identical
+    # (one changed line) -- the launchWorker shape: small, distant, barely drifted.
+    lines = [f"line_{i}_stable_content" for i in range(20)]
+    lines_changed = list(lines)
+    lines_changed[5] = "line_5_stable_content  # different comment"
+    body_small_a = "\n".join(lines)
+    body_small_b = "\n".join(lines_changed)
+    units_small = {
+        3: _unit(
+            3, file_path="p/q/a.py", start=1, end=20, body=body_small_a, body_hash="c"
+        ),
+        4: _unit(
+            4, file_path="r/s/b.py", start=1, end=20, body=body_small_b, body_hash="d"
+        ),
+    }
+    units = {**units_big, **units_small}
+    clusters = [_cluster([1, 2]), _cluster([3, 4])]
+
+    evidence = build_evidence(clusters, units, {})
+
+    assert [e.number for e in evidence] == [2, 1]
+    big = next(e for e in evidence if e.number == 1)
+    small = next(e for e in evidence if e.number == 2)
+    assert small.value > big.value
+    assert big.drift_ratio is not None
+    assert big.drift_ratio < triage._DRIFT_SIMILARITY_FLOOR
+    assert small.drift_ratio is not None
+    assert small.drift_ratio >= triage._DRIFT_SIMILARITY_FLOOR
+
+
+# --- drift below the similarity floor gets no boost ---
+
+
+def test_below_drift_floor_gets_no_boost_and_withholds_likely_real():
+    # Two 40-line blocks, cross-file, that would satisfy the size and
+    # cross-file conditions for likely-real, but share almost no text.
+    body_a = "\n".join(f"alpha_segment_{i}_unique_content" for i in range(40))
+    body_b = "\n".join(f"beta_segment_{i}_different_stuff" for i in range(40))
+    units = {
+        1: _unit(1, file_path="src/a.py", start=1, end=40, body=body_a, body_hash="a"),
+        2: _unit(
+            2, file_path="other/b.py", start=1, end=40, body=body_b, body_hash="b"
+        ),
+    }
+    evidence = _only(build_evidence([_cluster([1, 2])], units, {}))
+
+    assert evidence.drift is not None
+    assert evidence.drift_ratio is not None
+    assert evidence.drift_ratio < triage._DRIFT_SIMILARITY_FLOOR
+    assert evidence.verdict == "needs-judgment"
+    # No multiplier applied: value is exactly the unboosted base (size + copy + distance).
+    expected_base = (
+        triage._SIZE_WEIGHT * evidence.lines
+        + triage._COPY_WEIGHT * (evidence.members - 1)
+        + triage._DISTANCE_WEIGHT * evidence.max_path_hops
+    )
+    assert evidence.value == round(expected_base, 2)
