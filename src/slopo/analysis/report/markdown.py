@@ -6,16 +6,20 @@ from slopo.analysis.models import Cluster, UnitRecord
 from slopo.analysis.report.naming import cluster_filename
 
 _LANG_MAP = {
+    ".cjs": "javascript",
     ".cs": "csharp",
     ".ex": "elixir",
     ".go": "go",
     ".java": "java",
     ".js": "javascript",
+    ".jsx": "jsx",
     ".kt": "kotlin",
+    ".mjs": "javascript",
     ".php": "php",
     ".py": "python",
     ".rs": "rust",
     ".ts": "typescript",
+    ".tsx": "tsx",
 }
 
 
