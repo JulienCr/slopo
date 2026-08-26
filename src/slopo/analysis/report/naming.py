@@ -2,6 +2,8 @@ import re
 
 CLUSTER_FILE_GLOB = "cluster-*.md"
 CLUSTER_FILE_RE = re.compile(r"cluster-\d+\.md")
+RECOMMENDATIONS_FILENAME = "recommendations.md"
+AGENT_BRIEF_FILENAME = "agent-brief.md"
 
 
 def cluster_filename(number: int, total: int) -> str:

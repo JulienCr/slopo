@@ -2,14 +2,21 @@ from slopo.analysis.models import Cluster, UnitRecord
 from slopo.analysis.triage import ClusterEvidence
 
 
+def split_by_verdict(
+    evidence: list[ClusterEvidence],
+) -> tuple[list[ClusterEvidence], list[ClusterEvidence]]:
+    attention = [e for e in evidence if e.verdict != "likely-artifact"]
+    artifacts = [e for e in evidence if e.verdict == "likely-artifact"]
+    return attention, artifacts
+
+
 def build_recommendations_markdown(
     evidence: list[ClusterEvidence],
     clusters: list[Cluster],
     units: dict[int, UnitRecord],
     duplicates: dict[int, list[UnitRecord]],
 ) -> str:
-    attention = [e for e in evidence if e.verdict != "likely-artifact"]
-    artifacts = [e for e in evidence if e.verdict == "likely-artifact"]
+    attention, artifacts = split_by_verdict(evidence)
 
     parts = [_intro(len(evidence), len(attention), len(artifacts))]
     for e in attention:

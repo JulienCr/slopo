@@ -8,14 +8,16 @@ from slopo.analysis.report.markdown import (
     build_index_markdown,
 )
 from slopo.analysis.report.naming import (
+    AGENT_BRIEF_FILENAME,
     CLUSTER_FILE_GLOB,
     CLUSTER_FILE_RE,
+    RECOMMENDATIONS_FILENAME,
     cluster_filename,
 )
 from slopo.analysis.report.recommendations import build_recommendations_markdown
 from slopo.analysis.triage import build_evidence
 
-_OWNED_FILES = ("index.md", "recommendations.md", "agent-brief.md")
+_OWNED_FILES = ("index.md", RECOMMENDATIONS_FILENAME, AGENT_BRIEF_FILENAME)
 
 
 def write_report(
@@ -39,12 +41,12 @@ def write_report(
         )
 
     evidence = build_evidence(clusters, units, duplicates)
-    (output_dir / "recommendations.md").write_text(
+    (output_dir / RECOMMENDATIONS_FILENAME).write_text(
         build_recommendations_markdown(evidence, clusters, units, duplicates),
         encoding="utf-8",
     )
-    (output_dir / "agent-brief.md").write_text(
-        build_agent_brief_markdown(evidence, clusters, units, duplicates),
+    (output_dir / AGENT_BRIEF_FILENAME).write_text(
+        build_agent_brief_markdown(evidence),
         encoding="utf-8",
     )
 

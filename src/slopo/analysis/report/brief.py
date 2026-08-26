@@ -1,22 +1,23 @@
-from slopo.analysis.models import Cluster, UnitRecord
+from slopo.analysis.report.naming import RECOMMENDATIONS_FILENAME
+from slopo.analysis.report.recommendations import split_by_verdict
 from slopo.analysis.triage import ClusterEvidence
 
 _PREAMBLE = """\
 This repository was scanned for duplicated code. The scan found clusters of \
-similar code units by embedding similarity; each cluster below is a candidate, \
-not a verdict. Whether two similar pieces of code should be merged, left alone, \
+similar code units by embedding similarity; each cluster is a candidate, not \
+a verdict. Whether two similar pieces of code should be merged, left alone, \
 or flagged as a real bug depends on what the code actually does, and that \
 question is yours to answer, not the scanner's.
 
 Open the real files at the given paths and read them before judging a cluster. \
-Do not decide from the excerpts in this document alone: they are truncated to \
-one member's body and can hide the difference that matters. A good triage of \
-this report came from reading the files; a plausible-looking one came from \
-trusting the excerpts.
+Do not decide from the excerpts alone: they are truncated to one member's body \
+and can hide the difference that matters. A good triage of this report came \
+from reading the files; a plausible-looking one came from trusting the \
+excerpts.
 
 ## The pattern to watch for: copies that have already diverged
 
-A cluster whose `drift` field is non-empty is not a stale duplicate, it is two \
+A cluster whose drift diff is non-empty is not a stale duplicate, it is two \
 pieces of logic that used to agree and no longer do. That is a live risk: a bug \
 fixed in one copy and not the other, a check tightened in one place and left \
 loose in its twin. Treat every drifted cluster as higher priority than an \
@@ -27,7 +28,7 @@ The reason this needs saying explicitly: a path-traversal guard duplicated as \
 without ever surfacing the other. Near-anagram names, identical logic, and a \
 `grep` for one that never finds the other is exactly the shape of the cases \
 worth the most attention. Do not rely on naming similarity to find these \
-clusters; rely on the drift field.
+clusters; rely on the drift diff.
 
 ## The three verdicts
 
@@ -44,7 +45,7 @@ keep over a report that only counts characters.
 
 ## What to hand back
 
-For every cluster below, produce one entry in this format:
+For every cluster you look at, produce one entry in this format:
 
 ```
 ### Cluster N: <one-line verdict in your own words>
@@ -59,61 +60,16 @@ way, with your reasoning. A cluster you examined and dismissed, recorded as \
 such, is what stops the next audit from re-litigating it from scratch. Silence \
 on a cluster reads as "not looked at," not as "fine."
 
-## Clusters
+## Where the findings are
 """
 
 
-def build_agent_brief_markdown(
-    evidence: list[ClusterEvidence],
-    clusters: list[Cluster],
-    units: dict[int, UnitRecord],
-    duplicates: dict[int, list[UnitRecord]],
-) -> str:
-    parts = [_PREAMBLE]
-    for e in evidence:
-        parts.append(_cluster_entry(e, clusters[e.number - 1], units, duplicates))
-    return "\n".join(parts) + "\n"
-
-
-def _cluster_entry(
-    evidence: ClusterEvidence,
-    cluster: Cluster,
-    units: dict[int, UnitRecord],
-    duplicates: dict[int, list[UnitRecord]],
-) -> str:
-    locations = _locations(cluster, units, duplicates)
-    lines = [
-        f"### Cluster {evidence.number} ({evidence.verdict})",
-        "",
-        f"Names: {', '.join(evidence.names)}",
-        f"{evidence.lines} lines, {evidence.members} members, "
-        f"{evidence.files} files, {evidence.max_path_hops} directories apart, "
-        f"{'same name' if evidence.same_name else 'different names'}, "
-        f"{'exact copies' if evidence.all_exact else 'diverged copies'}.",
-        f"Reasons: {'; '.join(evidence.reasons)}.",
-        "",
-        *(f"- `{location}`" for location in locations),
-    ]
-    if evidence.drift:
-        lines += [
-            "",
-            "Diff between the two closest non-identical members:",
-            "",
-            f"```diff\n{evidence.drift}\n```",
-        ]
-    return "\n".join(lines)
-
-
-def _locations(
-    cluster: Cluster,
-    units: dict[int, UnitRecord],
-    duplicates: dict[int, list[UnitRecord]],
-) -> list[str]:
-    records = [units[uid] for uid in cluster.unit_ids]
-    for uid in cluster.unit_ids:
-        records.extend(duplicates.get(uid, []))
-    records.sort(key=lambda record: record.file_path)
-    return [
-        f"{record.file_path}:{record.start_line}-{record.end_line}"
-        for record in records
-    ]
+def build_agent_brief_markdown(evidence: list[ClusterEvidence]) -> str:
+    attention, artifacts = split_by_verdict(evidence)
+    pointer = (
+        f"The findings are in `{RECOMMENDATIONS_FILENAME}`, next to this file, "
+        f"ranked highest value first: {len(evidence)} clusters, "
+        f"{len(attention)} worth a look, {len(artifacts)} folded into its "
+        "indexing-artifact list."
+    )
+    return _PREAMBLE + pointer + "\n"

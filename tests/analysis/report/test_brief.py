@@ -1,18 +1,10 @@
-from slopo.analysis.models import Cluster, UnitRecord
+import re
+
 from slopo.analysis.report.brief import build_agent_brief_markdown
+from slopo.analysis.report.naming import RECOMMENDATIONS_FILENAME
 from slopo.analysis.triage import ClusterEvidence
 
-_UNITS = {
-    1: UnitRecord(
-        1, "src/a/verify.py", "verifyIdClip", 10, 20, "def verifyIdClip(): ...", "h1"
-    ),
-    2: UnitRecord(
-        2, "src/b/verify.py", "verifyClipId", 12, 22, "def verifyClipId(): ...", "h2"
-    ),
-}
-_CLUSTERS = [Cluster([1, 2], 0.80, 0.90)]
-
-_EVIDENCE = ClusterEvidence(
+_REAL = ClusterEvidence(
     number=1,
     lines=10,
     members=2,
@@ -30,16 +22,34 @@ _EVIDENCE = ClusterEvidence(
     reasons=("names differ but shapes match",),
 )
 
+_ARTIFACT = ClusterEvidence(
+    number=2,
+    lines=4,
+    members=2,
+    files=1,
+    all_exact=True,
+    names=("helper", "helper2"),
+    same_name=False,
+    max_path_hops=0,
+    adjacent_in_file=True,
+    drift=None,
+    score_min=0.99,
+    score_max=0.99,
+    value=1.0,
+    verdict="likely-artifact",
+    reasons=("adjacent in the same file",),
+)
+
 
 def test_preamble_instructs_reading_the_real_files():
-    text = build_agent_brief_markdown([_EVIDENCE], _CLUSTERS, _UNITS, {})
+    text = build_agent_brief_markdown([_REAL])
 
     assert "Open the real files" in text
     assert "not the scanner's" in text
 
 
 def test_preamble_covers_the_three_verdicts():
-    text = build_agent_brief_markdown([_EVIDENCE], _CLUSTERS, _UNITS, {})
+    text = build_agent_brief_markdown([_REAL])
 
     assert "`likely-real`" in text
     assert "`likely-artifact`" in text
@@ -47,7 +57,7 @@ def test_preamble_covers_the_three_verdicts():
 
 
 def test_preamble_states_the_divergence_lesson_with_the_worked_case():
-    text = build_agent_brief_markdown([_EVIDENCE], _CLUSTERS, _UNITS, {})
+    text = build_agent_brief_markdown([_REAL])
 
     assert "verifyIdClip" in text
     assert "verifyClipId" in text
@@ -55,16 +65,29 @@ def test_preamble_states_the_divergence_lesson_with_the_worked_case():
 
 
 def test_output_format_and_ruling_out_are_specified():
-    text = build_agent_brief_markdown([_EVIDENCE], _CLUSTERS, _UNITS, {})
+    text = build_agent_brief_markdown([_REAL])
 
     assert "Recommended action:" in text
     assert "Ruling a cluster out is as valuable as confirming one" in text
 
 
-def test_cluster_entry_has_locations_and_drift():
-    text = build_agent_brief_markdown([_EVIDENCE], _CLUSTERS, _UNITS, {})
+def test_carries_no_cluster_data():
+    text = build_agent_brief_markdown([_REAL, _ARTIFACT])
 
-    assert "### Cluster 1 (needs-judgment)" in text
-    assert "src/a/verify.py:10-20" in text
-    assert "src/b/verify.py:12-22" in text
-    assert "```diff\n- x\n+ y\n\n```" in text
+    assert "```diff" not in text
+    assert not re.search(r"[\w./-]+\.\w+:\d+-\d+", text)
+    assert not re.search(r"### Cluster \d", text)
+
+
+def test_names_the_recommendations_file_from_the_shared_constant():
+    text = build_agent_brief_markdown([_REAL])
+
+    assert f"`{RECOMMENDATIONS_FILENAME}`" in text
+
+
+def test_counts_match_the_recommendations_split():
+    text = build_agent_brief_markdown([_REAL, _ARTIFACT])
+
+    assert "2 clusters" in text
+    assert "1 worth a look" in text
+    assert "1 folded into its indexing-artifact list" in text
