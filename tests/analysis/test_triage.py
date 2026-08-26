@@ -418,15 +418,27 @@ def test_ranking_prefers_high_similarity_small_diff_over_low_similarity_big_diff
     small = next(e for e in evidence if e.number == 2)
     assert small.value > big.value
     assert big.drift_ratio is not None
-    assert big.drift_ratio < triage._DRIFT_SIMILARITY_FLOOR
     assert small.drift_ratio is not None
-    assert small.drift_ratio >= triage._DRIFT_SIMILARITY_FLOOR
+    assert small.drift_ratio > big.drift_ratio
+
+    def _expected_value(e: ClusterEvidence) -> float:
+        base = (
+            triage._SIZE_WEIGHT * e.lines
+            + triage._COPY_WEIGHT * (e.members - 1)
+            + triage._DISTANCE_WEIGHT * e.max_path_hops
+        ) * triage._drift_multiplier(e.drift_ratio)
+        if not e.same_name:
+            base += triage._NAME_MISMATCH_BONUS
+        return round(base, 2)
+
+    assert big.value == _expected_value(big)
+    assert small.value == _expected_value(small)
 
 
-# --- drift below the similarity floor gets no boost ---
+# --- low drift ratio: small continuous boost, verdict still withheld ---
 
 
-def test_below_drift_floor_gets_no_boost_and_withholds_likely_real():
+def test_low_drift_ratio_gets_a_small_boost_and_withholds_likely_real():
     # Two 40-line blocks, cross-file, that would satisfy the size and
     # cross-file conditions for likely-real, but share almost no text.
     body_a = "\n".join(f"alpha_segment_{i}_unique_content" for i in range(40))
@@ -441,15 +453,53 @@ def test_below_drift_floor_gets_no_boost_and_withholds_likely_real():
 
     assert evidence.drift is not None
     assert evidence.drift_ratio is not None
-    assert evidence.drift_ratio < triage._DRIFT_SIMILARITY_FLOOR
+    assert evidence.drift_ratio < triage._DRIFT_VERDICT_THRESHOLD
     assert evidence.verdict == "needs-judgment"
-    # No multiplier applied: value is exactly the unboosted base (size + copy + distance).
+
+    # The boost is continuous, not gated: a low ratio still nudges value up
+    # by a small, well-defined amount instead of contributing nothing.
+    multiplier = triage._drift_multiplier(evidence.drift_ratio)
+    assert 1.0 < multiplier < 1.1
     expected_base = (
         triage._SIZE_WEIGHT * evidence.lines
         + triage._COPY_WEIGHT * (evidence.members - 1)
         + triage._DISTANCE_WEIGHT * evidence.max_path_hops
-    )
+    ) * multiplier
     assert evidence.value == round(expected_base, 2)
+
+
+# --- drift multiplier: continuous, no cliff ---
+
+
+def test_drift_multiplier_matches_the_continuous_formula():
+    for ratio in (0.0, 0.1, 0.5, 0.79, 0.80, 0.81, 0.95, 1.0):
+        expected = 1.0 + (triage._DRIFT_MULTIPLIER - 1.0) * ratio**2
+        assert triage._drift_multiplier(ratio) == pytest.approx(expected)
+
+
+def test_drift_multiplier_is_strictly_monotonic_in_ratio():
+    ratios = [i / 100 for i in range(101)]
+    multipliers = [triage._drift_multiplier(r) for r in ratios]
+    assert multipliers == sorted(multipliers)
+    assert len(set(multipliers)) == len(multipliers)
+
+
+def test_drift_multiplier_no_cliff_around_the_old_gated_boundary():
+    # Two ratios straddling the removed 0.80 floor must not differ by
+    # anywhere near the full step the old gated formula produced right at
+    # that boundary (flat at 1.0 below it, ramping toward the ceiling above).
+    below = triage._drift_multiplier(0.79)
+    above = triage._drift_multiplier(0.81)
+    assert above - below < 0.05
+
+
+def test_drift_multiplier_low_ratio_is_close_to_no_boost():
+    assert triage._drift_multiplier(0.0) == 1.0
+    assert triage._drift_multiplier(0.1) < 1.02
+
+
+def test_drift_multiplier_none_ratio_is_no_boost():
+    assert triage._drift_multiplier(None) == 1.0
 
 
 # --- relational evidence ignores adjacency noise (nested closures) ---

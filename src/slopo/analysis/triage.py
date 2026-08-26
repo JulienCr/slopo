@@ -12,13 +12,13 @@ _SIZE_WEIGHT = 0.1
 _COPY_WEIGHT = 1.5
 # Each directory hop between the farthest pair raises drift risk on its own.
 _DISTANCE_WEIGHT = 0.3
-# Ceiling multiplier for a drifted pair at (near) full textual similarity;
-# scaled down toward 1.0 as the pair's ratio nears the floor below.
+# Ceiling multiplier for a drifted pair at full textual similarity; the
+# actual boost scales continuously with the ratio, see _drift_multiplier.
 _DRIFT_MULTIPLIER = 2.0
-# Textual similarity of the closest drifted pair, distinct from the cosine
-# similarity that formed the cluster (two scripts can sit at 0.85 in
-# embedding space while barely half the same text); below it, no boost.
-_DRIFT_SIMILARITY_FLOOR = 0.80
+# Verdict-only cut: below it, drift reads as "related" not "diverged copy".
+# Scoring never gates on this (see _drift_multiplier) - real drift_ratio
+# values form a smooth continuum with no separating gap to hang one on.
+_DRIFT_VERDICT_THRESHOLD = 0.80
 # Differing names defeat grep entirely; a flat bonus reflects a distinct risk.
 _NAME_MISMATCH_BONUS = 4.0
 # A pair adjacent or nested in one file usually reflects an indexer split.
@@ -167,11 +167,11 @@ def _closest_drifted_pair(
 
 
 def _drift_multiplier(ratio: float | None) -> float:
-    if ratio is None or ratio < _DRIFT_SIMILARITY_FLOOR:
+    if ratio is None:
         return 1.0
-    span = 1.0 - _DRIFT_SIMILARITY_FLOOR
-    fraction = (ratio - _DRIFT_SIMILARITY_FLOOR) / span
-    return 1.0 + fraction * (_DRIFT_MULTIPLIER - 1.0)
+    # Continuous and monotonic in ratio, no cliff: a barely-related pair
+    # gets almost nothing, a near-identical one approaches the ceiling.
+    return 1.0 + (_DRIFT_MULTIPLIER - 1.0) * ratio**2
 
 
 def _build_drift(a: UnitRecord, b: UnitRecord) -> str:
@@ -210,15 +210,10 @@ def _score(
         reasons.append(f"copies span {max_hops} directory hop(s)")
     if drift_ratio is not None:
         multiplier = _drift_multiplier(drift_ratio)
-        if multiplier > 1.0:
-            value *= multiplier
-            reasons.append(
-                f"drift: {drift_ratio:.0%} textually identical, still reads as the same code"
-            )
-        else:
-            reasons.append(
-                f"diverged pair only {drift_ratio:.0%} alike: related, not duplicated, no drift boost"
-            )
+        value *= multiplier
+        reasons.append(
+            f"drift: {drift_ratio:.0%} textually alike, x{multiplier:.2f} weight"
+        )
     if not same_name:
         value += _NAME_MISMATCH_BONUS
         reasons.append("names differ across copies, invisible to grep")
@@ -244,7 +239,7 @@ def _verdict(
 ) -> str:
     if all_adjacent_in_file or lines <= _TRIVIAL_BLOCK_LINES:
         return "likely-artifact"
-    drifted_enough = drift_ratio is not None and drift_ratio >= _DRIFT_SIMILARITY_FLOOR
+    drifted_enough = drift_ratio is not None and drift_ratio >= _DRIFT_VERDICT_THRESHOLD
     if (
         files >= 2
         and lines >= _SUBSTANTIAL_BLOCK_LINES
