@@ -55,6 +55,7 @@ class ClusterEvidence:
     # Defaulted and last: added after report/** fixtures were already written
     # with keyword construction, so this keeps them constructible unchanged.
     drift_ratio: float | None = None
+    all_adjacent_in_file: bool = False
 
 
 def build_evidence(
@@ -92,6 +93,16 @@ def _same_file_gap(a: UnitRecord, b: UnitRecord) -> int:
 
 def _adjacent_in_file(members: list[UnitRecord]) -> bool:
     return any(
+        a.file_path == b.file_path and _same_file_gap(a, b) <= _ADJACENT_MAX_GAP_LINES
+        for a, b in itertools.combinations(members, 2)
+    )
+
+
+def _all_adjacent_in_file(members: list[UnitRecord]) -> bool:
+    # A nested function is indexed both on its own and inside its parent, so
+    # one logical block can enter a cluster as several adjacent members; that
+    # is noise about those members, not evidence the whole cluster is noise.
+    return all(
         a.file_path == b.file_path and _same_file_gap(a, b) <= _ADJACENT_MAX_GAP_LINES
         for a, b in itertools.combinations(members, 2)
     )
@@ -151,7 +162,7 @@ def _score(
     max_hops: int,
     drift_ratio: float | None,
     same_name: bool,
-    adjacent_in_file: bool,
+    all_adjacent_in_file: bool,
 ) -> tuple[float, tuple[str, ...]]:
     reasons: list[str] = [
         f"{lines}-line block duplicated across {member_count} copies",
@@ -177,9 +188,11 @@ def _score(
     if not same_name:
         value += _NAME_MISMATCH_BONUS
         reasons.append("names differ across copies, invisible to grep")
-    if adjacent_in_file:
+    if all_adjacent_in_file:
         value *= _ADJACENCY_PENALTY
-        reasons.append("members sit adjacent/nested in one file: likely indexer split")
+        reasons.append(
+            "every member sits adjacent/nested in one file: likely indexer split"
+        )
     if lines <= _TRIVIAL_BLOCK_LINES:
         value *= _TRIVIAL_BLOCK_PENALTY
         reasons.append(
@@ -193,9 +206,9 @@ def _verdict(
     files: int,
     same_name: bool,
     drift_ratio: float | None,
-    adjacent_in_file: bool,
+    all_adjacent_in_file: bool,
 ) -> str:
-    if adjacent_in_file or lines <= _TRIVIAL_BLOCK_LINES:
+    if all_adjacent_in_file or lines <= _TRIVIAL_BLOCK_LINES:
         return "likely-artifact"
     drifted_enough = drift_ratio is not None and drift_ratio >= _DRIFT_SIMILARITY_FLOOR
     if (
@@ -220,6 +233,7 @@ def _evaluate(
     same_name = len(names) <= 1
     all_exact = len({m.body_hash for m in members}) <= 1
     adjacent = _adjacent_in_file(members)
+    all_adjacent = _all_adjacent_in_file(members)
     max_hops = _max_path_hops(members)
 
     drift = None
@@ -231,9 +245,9 @@ def _evaluate(
             drift = _build_drift(a, b)
 
     value, reasons = _score(
-        lines, len(members), max_hops, drift_ratio, same_name, adjacent
+        lines, len(members), max_hops, drift_ratio, same_name, all_adjacent
     )
-    verdict = _verdict(lines, files, same_name, drift_ratio, adjacent)
+    verdict = _verdict(lines, files, same_name, drift_ratio, all_adjacent)
 
     return ClusterEvidence(
         number=number,
@@ -245,6 +259,7 @@ def _evaluate(
         same_name=same_name,
         max_path_hops=max_hops,
         adjacent_in_file=adjacent,
+        all_adjacent_in_file=all_adjacent,
         drift=drift,
         drift_ratio=drift_ratio,
         score_min=cluster.min_similarity,

@@ -182,6 +182,7 @@ def test_adjacent_in_file_true_for_touching_blocks():
     }
     evidence = _only(build_evidence([_cluster([1, 2])], units, {}))
     assert evidence.adjacent_in_file is True
+    assert evidence.all_adjacent_in_file is True
 
 
 def test_adjacent_in_file_false_when_far_apart_in_same_file():
@@ -191,6 +192,41 @@ def test_adjacent_in_file_false_when_far_apart_in_same_file():
     }
     evidence = _only(build_evidence([_cluster([1, 2])], units, {}))
     assert evidence.adjacent_in_file is False
+    assert evidence.all_adjacent_in_file is False
+
+
+def test_all_adjacent_in_file_false_when_one_pair_is_cross_file():
+    # A and B sit adjacent in one file (indexer noise); C is a genuine
+    # cross-file duplicate of A. A single real cross-file pair must stop
+    # the whole cluster from reading as an indexer-split artifact.
+    body_a = "\n".join(f"shared_line_{i}" for i in range(50))
+    body_b = "\n".join(f"other_local_line_{i}" for i in range(50))
+    body_c = body_a + "\n# tweak"
+    units = {
+        1: _unit(1, file_path="src/a.py", start=1, end=50, body=body_a, body_hash="a"),
+        2: _unit(
+            2, file_path="src/a.py", start=51, end=100, body=body_b, body_hash="b"
+        ),
+        3: _unit(
+            3, file_path="src/other.py", start=1, end=50, body=body_c, body_hash="c"
+        ),
+    }
+    evidence = _only(build_evidence([_cluster([1, 2, 3])], units, {}))
+
+    assert evidence.adjacent_in_file is True
+    assert evidence.all_adjacent_in_file is False
+    assert evidence.verdict != "likely-artifact"
+    assert not any("indexer split" in reason for reason in evidence.reasons)
+
+    # No adjacency penalty applied: value matches the unpenalised formula.
+    base = (
+        triage._SIZE_WEIGHT * evidence.lines
+        + triage._COPY_WEIGHT * (evidence.members - 1)
+        + triage._DISTANCE_WEIGHT * evidence.max_path_hops
+    ) * triage._drift_multiplier(evidence.drift_ratio)
+    if not evidence.same_name:
+        base += triage._NAME_MISMATCH_BONUS
+    assert evidence.value == round(base, 2)
 
 
 # --- verdict ---
@@ -206,7 +242,18 @@ def test_verdict_likely_artifact_when_adjacent_in_file():
         ),
     }
     evidence = _only(build_evidence([_cluster([1, 2])], units, {}))
+    assert evidence.all_adjacent_in_file is True
     assert evidence.verdict == "likely-artifact"
+
+    # Every pair is adjacent in one file: the penalty still applies.
+    base = (
+        triage._SIZE_WEIGHT * evidence.lines
+        + triage._COPY_WEIGHT * (evidence.members - 1)
+        + triage._DISTANCE_WEIGHT * evidence.max_path_hops
+    ) * triage._drift_multiplier(evidence.drift_ratio)
+    if not evidence.same_name:
+        base += triage._NAME_MISMATCH_BONUS
+    assert evidence.value == round(base * triage._ADJACENCY_PENALTY, 2)
 
 
 def test_verdict_likely_artifact_when_block_too_small():
@@ -215,6 +262,9 @@ def test_verdict_likely_artifact_when_block_too_small():
         2: _unit(2, file_path="src/b.py", start=1, end=3, body="y", body_hash="y"),
     }
     evidence = _only(build_evidence([_cluster([1, 2])], units, {}))
+    # Trivial-block route is independent of adjacency: these members are not
+    # even in the same file.
+    assert evidence.all_adjacent_in_file is False
     assert evidence.verdict == "likely-artifact"
 
 
