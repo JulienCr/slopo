@@ -24,6 +24,7 @@ _PROFILES = {
     "python": lang_python.PROFILE,
     "typescript": lang_typescript.PROFILE,
     "javascript": lang_typescript.PROFILE,
+    "tsx": lang_typescript.PROFILE,
 }
 
 

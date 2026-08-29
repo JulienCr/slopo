@@ -9,22 +9,27 @@ from slopo.indexing.parsing.lang import (
     php,
     python,
     typescript,
+    tsx,
     kotlin,
     java,
 )
 from slopo.indexing.parsing.base import CodeParser
 
 _REGISTRY: dict[str, CodeParser] = {
+    ".cjs": javascript.parse,
     ".cs": csharp.parse,
     ".ex": elixir.parse,
     ".go": go.parse,
     ".java": java.parse,
     ".js": javascript.parse,
+    ".jsx": javascript.parse,
     ".kt": kotlin.parse,
+    ".mjs": javascript.parse,
     ".php": php.parse,
     ".py": python.parse,
     ".rs": rust.parse,
     ".ts": typescript.parse,
+    ".tsx": tsx.parse,
 }
 
 

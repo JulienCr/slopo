@@ -1,12 +1,12 @@
-"""Rename profile shared by TypeScript and JavaScript.
+"""Rename profile shared by TypeScript, TSX and JavaScript.
 
-Verified against `tree_sitter_typescript.language_typescript()` and
-`tree_sitter_javascript.language()`: both grammars give a property/method
-name its own "property_identifier" node type (member access, object literal
-keys, method definitions), distinct from the "identifier" type used for
-variable references and bindings. That split does the attribute-position
-exclusion for free, so unlike Python there is no parent/field check needed
-here.
+Verified against `tree_sitter_typescript.language_typescript()`,
+`tree_sitter_typescript.language_tsx()` and `tree_sitter_javascript.language()`:
+all three grammars give a property/method name its own "property_identifier"
+node type (member access, object literal keys, method definitions), distinct
+from the "identifier" type used for variable references and bindings. That
+split does the attribute-position exclusion for free, so unlike Python there
+is no parent/field check needed here.
 """
 
 from __future__ import annotations
