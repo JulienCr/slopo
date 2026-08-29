@@ -81,6 +81,37 @@ As an idea of scale, running this over Slopo's own `src/` directory finds 184 co
 
 `uv run slopo show-config` validates a config and prints every configurable parameter. `uv run slopo --help` lists all commands.
 
+## Auditing a project with `make audit`
+
+```bash
+make audit PROJECT=/path/to/project
+# or, positionally:
+make audit /path/to/project
+```
+
+This generates a config (only if one is not already there for that project),
+then runs `index`, `embed` (retried up to `EMBED_ATTEMPTS` times - embedding
+is resumable, so this just continues a run that died partway through), and
+`analyze`. Everything lands in `.audit/<basename of PROJECT>/` inside this
+repo - `slopo.conf.yaml`, `slopo.db`, `report/`, `slopo.ignore.txt` - never
+inside the audited project. `.audit/` is gitignored.
+
+`slopo.db` persists between runs, so re-running `make audit` on the same
+project re-indexes incrementally. Worth overriding: `SIMILARITY`, `RERANK`,
+`MIN_NODES`, `MODEL`, `DIMENSIONS`, `EXCLUDE`, and `EXCLUDE_TESTS` (set to
+empty to keep tests in the audit). `make help` lists all of them with their
+defaults; [threshold-calibration.md](threshold-calibration.md) explains where
+the numeric defaults come from.
+
+## `make check`
+
+```bash
+make check
+```
+
+Runs the same three gates as CI: `test`, `lint`, `typecheck`. Each is also
+its own target.
+
 ## The quality baseline
 
 A change to the detection logic (parsing, similarity, reranking, clustering) needs to be judged against a number, not an impression. That is what the baseline under `tests/baseline/` is for.
